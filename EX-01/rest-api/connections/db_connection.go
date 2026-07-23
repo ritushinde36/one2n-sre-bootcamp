@@ -1,8 +1,7 @@
 package connections
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/ritushinde36/one2n-sre-bootcamp/models"
@@ -15,16 +14,24 @@ var DB *gorm.DB
 func Connect_to_DB() {
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
-		log.Fatal("Environment variable 'DSN' is not set")
+		slog.Error("environment variable DSN is not set")
+		os.Exit(1)
 	}
+
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Error connecting to DB : ", err)
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
 	}
-	fmt.Print("Successfullly connect to DB")
+
+	slog.Info("connected to database")
 	DB = db
 }
 
 func CreateTable() {
-	DB.AutoMigrate(&models.Student{})
+	if err := DB.AutoMigrate(&models.Student{}); err != nil {
+		slog.Error("failed to migrate student table", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("student table migrated")
 }

@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ritushinde36/one2n-sre-bootcamp/config"
@@ -10,6 +11,8 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	//loading the env veriables
 	config.LoadConfig()
 
@@ -31,6 +34,9 @@ func main() {
 	router.GET("/healthcheck", controllers.HealthCheck)
 
 	//running the router to listen on localhost
-	router.Run(":8888")
-	fmt.Println("server is up on localhost")
+	slog.Info("starting server", "port", 8888)
+	if err := router.Run(":8888"); err != nil {
+		slog.Error("server stopped unexpectedly", "error", err)
+		os.Exit(1)
+	}
 }
