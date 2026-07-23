@@ -50,21 +50,47 @@ func CreateStudent(c *gin.Context) {
 }
 
 // Update the record of a student
+// func UpdateStudent(c *gin.Context) {
+// 	student_id := c.Param("id")
+// 	var student models.Student
+
+// 	err := connections.DB.First(&student, student_id).Error
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
+// 		return
+// 	}
+
+// 	var updated_student models.Student
+
+// 	err = c.ShouldBindJSON(&updated_student)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	result := connections.DB.Model(&student).Updates(updated_student)
+// 	if result.Error != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, student)
+
+// }
+
 func UpdateStudent(c *gin.Context) {
 	student_id := c.Param("id")
-	var student models.Student
 
-	err := connections.DB.First(&student, student_id).Error
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
+	var updated_student models.Student
+	if err := c.ShouldBindJSON(&updated_student); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var updated_student models.Student
-
-	err = c.ShouldBindJSON(&updated_student)
+	var student models.Student
+	err := connections.DB.First(&student, student_id).Error
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
 		return
 	}
 
@@ -75,7 +101,6 @@ func UpdateStudent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, student)
-
 }
 
 // Delete the record of the student
@@ -88,4 +113,8 @@ func DeleteStudent(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "student deleted"})
 
+}
+
+func HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

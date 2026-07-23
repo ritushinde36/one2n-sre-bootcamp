@@ -28,6 +28,7 @@ func main() {
 	router.POST("/students", controllers.CreateStudent)
 	router.PUT("/student/:id", controllers.UpdateStudent)
 	router.DELETE("/student/:id", controllers.DeleteStudent)
+	router.GET("/healthcheck", controllers.HealthCheck)
 
 	//running the router to listen on localhost
 	router.Run(":8888")
