@@ -16,6 +16,8 @@ A simple Go-based REST API for doing basic CRUD operations on student records us
 - controllers/StudentController.go - request handlers for CRUD operations
 - models/studentModel.go - Student data model
 - connections/db_connection.go - MySQL connection and database migration
+- config/load_congig.go - for loading the db creds into the application
+- controllers_test - testing the methods
 
 ## Prerequisites
 
