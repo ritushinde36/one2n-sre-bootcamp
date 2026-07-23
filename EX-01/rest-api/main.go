@@ -4,10 +4,21 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ritushinde36/one2n-sre-bootcamp/config"
+	"github.com/ritushinde36/one2n-sre-bootcamp/connections"
 	"github.com/ritushinde36/one2n-sre-bootcamp/controllers"
 )
 
 func main() {
+	//loading the env veriables
+	config.LoadConfig()
+
+	// connect to the mysql
+	connections.Connect_to_DB()
+
+	//create student table
+	connections.CreateTable()
+
 	//setting up the router
 	router := gin.Default()
 
@@ -19,6 +30,6 @@ func main() {
 	router.DELETE("/student/:id", controllers.DeleteStudent)
 
 	//running the router to listen on localhost
-	router.Run()
+	router.Run(":8888")
 	fmt.Println("server is up on localhost")
 }
