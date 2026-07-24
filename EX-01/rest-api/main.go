@@ -26,11 +26,13 @@ func main() {
 	router := gin.Default()
 
 	// setting up the routes
-	router.GET("/students", controllers.GetAllStudents)
-	router.GET("/student/:id", controllers.GetStudent)
-	router.POST("/students", controllers.CreateStudent)
-	router.PUT("/student/:id", controllers.UpdateStudent)
-	router.DELETE("/student/:id", controllers.DeleteStudent)
+	v1 := router.Group("/api/v1")
+	v1.GET("/students", controllers.GetAllStudents)
+	v1.GET("/student/:id", controllers.GetStudent)
+	v1.POST("/students", controllers.CreateStudent)
+	v1.PUT("/student/:id", controllers.UpdateStudent)
+	v1.DELETE("/student/:id", controllers.DeleteStudent)
+
 	router.GET("/healthcheck", controllers.HealthCheck)
 
 	//running the router to listen on localhost

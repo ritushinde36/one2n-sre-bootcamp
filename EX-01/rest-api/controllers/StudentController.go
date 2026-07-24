@@ -32,7 +32,7 @@ func GetStudent(c *gin.Context) {
 
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Undable to get the student"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
 		return
 	}
 

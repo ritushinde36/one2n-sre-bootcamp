@@ -57,11 +57,12 @@ http://localhost:8888
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /students | Get all students |
-| GET | /student/:id | Get a student by ID |
-| POST | /students | Create a new student |
-| PUT | /student/:id | Update a student by ID |
-| DELETE | /student/:id | Delete a student by ID |
+| GET | /api/v1/students | Get all students |
+| GET | /api/v1/student/:id | Get a student by ID |
+| POST | /api/v1/students | Create a new student |
+| PUT | /api/v1/student/:id | Update a student by ID |
+| DELETE | /api/v1/student/:id | Delete a student by ID |
+| GET | /healthcheck | Check API health |
 
 ## Sample Request Body
 
@@ -82,13 +83,13 @@ Use this JSON body for creating or updating a student:
 ### Get all students
 
 ```bash
-curl http://localhost:8888/students
+curl http://localhost:8888/api/v1/students
 ```
 
 ### Create a student
 
 ```bash
-curl -X POST http://localhost:8888/students \
+curl -X POST http://localhost:8888/api/v1/students \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
