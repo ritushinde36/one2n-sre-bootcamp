@@ -41,7 +41,13 @@ CREATE DATABASE student_db;
 go mod tidy
 ```
 
-3. Run the server:
+3. Create a `.env` file in the project root with your MySQL DSN:
+
+```bash
+DSN=root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+```
+
+4. Run the server:
 
 ```bash
 go run main.go
