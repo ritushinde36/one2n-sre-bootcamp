@@ -127,9 +127,14 @@ func UpdateStudent(c *gin.Context) {
 // Delete the record of the student
 func DeleteStudent(c *gin.Context) {
 	student_id := c.Param("id")
-	err := connections.DB.Delete(&models.Student{}, student_id).Error
-	if err != nil {
-		slog.Error("failed to delete student", "student_id", student_id, "error", err)
+	result := connections.DB.Delete(&models.Student{}, student_id)
+	if result.Error != nil {
+		slog.Error("failed to delete student", "student_id", student_id, "error", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to delete student"})
+		return
+	}
+	if result.RowsAffected == 0 {
+		slog.Warn("student not found", "student_id", student_id)
 		c.JSON(http.StatusNotFound, gin.H{"error": "student not found"})
 		return
 	}
