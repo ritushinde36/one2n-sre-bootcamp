@@ -18,7 +18,9 @@ func Connect_to_DB() {
 		os.Exit(1)
 	}
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		TranslateError: true,
+	})
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)

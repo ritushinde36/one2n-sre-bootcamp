@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ritushinde36/one2n-sre-bootcamp/connections"
 	"github.com/ritushinde36/one2n-sre-bootcamp/models"
+	"gorm.io/gorm"
 )
 
 // get the records of all the students
@@ -52,7 +54,11 @@ func CreateStudent(c *gin.Context) {
 	}
 	if err := connections.DB.Create(&new_student).Error; err != nil {
 		slog.Error("failed to create student", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			c.JSON(http.StatusConflict, gin.H{"error": "a student with this email already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to create student"})
 		return
 	}
 	slog.Info("created student", "student_id", new_student.ID)
