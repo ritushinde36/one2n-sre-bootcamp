@@ -32,7 +32,7 @@ func GetStudent(c *gin.Context) {
 
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
 		return
 	}
 
@@ -103,7 +103,7 @@ func UpdateStudent(c *gin.Context) {
 	err := connections.DB.First(&student, student_id).Error
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
 		return
 	}
 
