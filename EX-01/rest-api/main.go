@@ -36,8 +36,13 @@ func main() {
 	router.GET("/healthcheck", controllers.HealthCheck)
 
 	//running the router to listen on localhost
-	slog.Info("starting server", "port", 8888)
-	if err := router.Run(":8888"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8888"
+	}
+
+	slog.Info("starting server", "port", port)
+	if err := router.Run(":" + port); err != nil {
 		slog.Error("server stopped unexpectedly", "error", err)
 		os.Exit(1)
 	}
