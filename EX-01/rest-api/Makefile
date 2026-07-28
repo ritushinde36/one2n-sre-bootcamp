@@ -3,8 +3,8 @@
 build:
 	go build -o bin/rest-api .
 
-run:
-	go run main.go
+run: build
+	./bin/rest-api
 
 # test requires Docker to be running (spins up a real MySQL container).
 test:
