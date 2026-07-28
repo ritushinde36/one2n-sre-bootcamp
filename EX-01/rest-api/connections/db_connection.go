@@ -20,7 +20,7 @@ func Connect_to_DB() {
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		TranslateError: true,
-		Logger:         newSlogGormLogger(),
+		Logger:         NewSlogGormLogger(),
 	})
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)

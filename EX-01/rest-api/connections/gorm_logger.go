@@ -12,7 +12,10 @@ type slogGormLogger struct {
 	level logger.LogLevel
 }
 
-func newSlogGormLogger() logger.Interface {
+// NewSlogGormLogger returns a GORM logger.Interface that routes SQL query
+// logs through slog, so they're structured JSON like the rest of the app's
+// logs instead of GORM's default colorized plain text.
+func NewSlogGormLogger() logger.Interface {
 	return &slogGormLogger{level: logger.Warn}
 }
 
