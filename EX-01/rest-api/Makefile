@@ -1,4 +1,4 @@
-.PHONY: build run test test-integration
+.PHONY: build run test
 
 build:
 	go build -o bin/rest-api .
@@ -6,8 +6,6 @@ build:
 run:
 	go run main.go
 
+# test requires Docker to be running (spins up a real MySQL container).
 test:
 	go test ./...
-
-test-integration:
-	go test -tags=integration ./integration_test/...
