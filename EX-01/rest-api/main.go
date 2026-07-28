@@ -8,6 +8,7 @@ import (
 	"github.com/ritushinde36/one2n-sre-bootcamp/config"
 	"github.com/ritushinde36/one2n-sre-bootcamp/connections"
 	"github.com/ritushinde36/one2n-sre-bootcamp/controllers"
+	"github.com/ritushinde36/one2n-sre-bootcamp/middleware"
 )
 
 func main() {
@@ -23,7 +24,9 @@ func main() {
 	connections.CreateTable()
 
 	//setting up the router
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.SlogLogger())
 
 	// setting up the routes
 	v1 := router.Group("/api/v1")
