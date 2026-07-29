@@ -68,35 +68,6 @@ func CreateStudent(c *gin.Context) {
 
 }
 
-// Update the record of a student
-// func UpdateStudent(c *gin.Context) {
-// 	student_id := c.Param("id")
-// 	var student models.Student
-
-// 	err := connections.DB.First(&student, student_id).Error
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get the student"})
-// 		return
-// 	}
-
-// 	var updated_student models.Student
-
-// 	err = c.ShouldBindJSON(&updated_student)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	result := connections.DB.Model(&student).Updates(updated_student)
-// 	if result.Error != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, student)
-
-// }
-
 func UpdateStudent(c *gin.Context) {
 	student_id := c.Param("id")
 
