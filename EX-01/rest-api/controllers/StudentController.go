@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ritushinde36/one2n-sre-bootcamp/connections"
@@ -144,6 +146,19 @@ func DeleteStudent(c *gin.Context) {
 }
 
 func HealthCheck(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+	defer cancel()
+
+	sqlDB, err := connections.DB.DB()
+	if err == nil {
+		err = sqlDB.PingContext(ctx)
+	}
+	if err != nil {
+		slog.Error("healthcheck failed: database unreachable", "error", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "database": "unreachable"})
+		return
+	}
+
 	slog.Debug("healthcheck ping")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
