@@ -7,16 +7,18 @@ A simple Go-based REST API for doing basic CRUD operations on student records us
 - Create, read, update, and delete student records
 - MySQL database integration with go using GORM
 - Router set up using Gin and Gonic.
-- Automatic table creation for the Student model struct
+- Versioned database schema migrations via goose
 - API served on port 8888
 
 ## Project Structure
 
-- main.go - application entry point. Connects to DB, creates the table and route setup. 
+- main.go - application entry point. Connects to DB and sets up routes.
 - controllers/StudentController.go - request handlers for CRUD operations
 - models/studentModel.go - Student data model
-- connections/db_connection.go - MySQL connection and database migration
+- connections/db_connection.go - MySQL connection setup
 - config/load_congig.go - for loading the db creds into the application
+- migrations/ - goose SQL migration files for the database schema
+- cmd/migrate - standalone command to run migrations (up/down/status)
 - controllers_test - testing the methods
 
 ## Prerequisites
@@ -47,10 +49,16 @@ go mod tidy
 DSN=root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 ```
 
-4. Run the server:
+4. Run database migrations to create the schema:
 
 ```bash
-go run main.go
+make migrate-up
+```
+
+5. Run the server:
+
+```bash
+make run
 ```
 
 The API will start on:

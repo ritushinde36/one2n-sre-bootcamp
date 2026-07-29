@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ritushinde36/one2n-sre-bootcamp/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -29,12 +28,4 @@ func Connect_to_DB() {
 
 	slog.Info("connected to database")
 	DB = db
-}
-
-func CreateTable() {
-	if err := DB.AutoMigrate(&models.Student{}); err != nil {
-		slog.Error("failed to migrate student table", "error", err)
-		os.Exit(1)
-	}
-	slog.Info("student table migrated")
 }

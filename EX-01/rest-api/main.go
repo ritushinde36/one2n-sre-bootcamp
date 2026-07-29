@@ -20,9 +20,6 @@ func main() {
 	// connect to the mysql
 	connections.Connect_to_DB()
 
-	//create student table
-	connections.CreateTable()
-
 	//setting up the router
 	router := gin.New()
 	router.Use(gin.Recovery())
