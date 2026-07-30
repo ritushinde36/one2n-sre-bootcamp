@@ -19,11 +19,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/rest-api .
 # ---- Runtime stage ----
 FROM alpine:3.20
 
-# ca-certificates: needed for any TLS connections.
-# tzdata: the app's DSN uses loc=Local, which needs the system timezone
-# database to resolve correctly.
-RUN apk add --no-cache ca-certificates tzdata
-
 COPY --from=build /app/bin/rest-api /usr/local/bin/rest-api
 
 EXPOSE 8888
