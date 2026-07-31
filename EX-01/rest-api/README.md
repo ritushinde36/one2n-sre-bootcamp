@@ -29,7 +29,7 @@ Before running the application, make sure you have:
 - MySQL running locally
 - A database named student_db
 
-## Setup
+## Local Setup (without Docker)
 
 1. Create the database in MySQL:
 
@@ -65,6 +65,80 @@ The API will start on:
 
 ```text
 http://localhost:8888
+```
+
+## Running with Docker
+
+This runs the API and MySQL as separate containers on a shared Docker
+network, instead of relying on a locally installed MySQL.
+
+### Prerequisites
+
+- Docker installed and running
+
+### 1. Create a `.env.docker` file
+
+This is separate from the `.env` used above - it's specifically for the
+containerized setup, since the DSN needs to point at the MySQL *container*
+(`student-mysql`) rather than `127.0.0.1`. It's gitignored, same as `.env`.
+
+```bash
+MYSQL_ROOT_PASSWORD=yourpassword
+MYSQL_DATABASE=student_db
+DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+PORT=8888
+```
+
+### 2. Start MySQL as a container
+
+```bash
+make docker-mysql-up
+```
+
+This creates a Docker network (`student-api-net`), and starts a MySQL
+container on it with a persistent volume, so data survives even if the
+container is removed and recreated later. If you have a local MySQL
+already running on port 3306 (e.g. via Homebrew), stop it first
+(`brew services stop mysql`) to free up the port.
+
+### 3. Run migrations against the containerized MySQL
+
+```bash
+make migrate-up
+```
+
+This runs directly on your machine (not in a container), reaching the
+MySQL container through the port published to your host - make sure
+`.env`'s `DSN` still points at `127.0.0.1:3306` for this to work.
+
+### 4. Build the image
+
+```bash
+make docker-build
+```
+
+Builds and tags the image using the current git tag/version, e.g.
+`student-rest-api:v0.1.0`.
+
+### 5. Run the API container
+
+```bash
+make docker-run
+```
+
+This joins the same `student-api-net` network as MySQL and injects config
+from `.env.docker` at runtime - nothing is baked into the image itself.
+
+Verify it's working:
+
+```bash
+curl http://localhost:8888/healthcheck
+```
+
+### Stopping everything
+
+```bash
+make docker-mysql-down
 ```
 
 ## API Endpoints
