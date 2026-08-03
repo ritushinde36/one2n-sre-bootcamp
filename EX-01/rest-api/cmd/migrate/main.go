@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pressly/goose/v3"
@@ -41,8 +42,69 @@ func main() {
 		os.Exit(1)
 	}
 
+	if command == "up" {
+		if err := adoptPreExistingSchema(db); err != nil {
+			slog.Error("refusing to proceed: pre-existing students table does not match migration 00001", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	if err := goose.Run(command, db, migrationsDir); err != nil {
 		slog.Error("migration failed", "command", command, "error", err)
 		os.Exit(1)
 	}
+}
+
+func adoptPreExistingSchema(db *sql.DB) error {
+	version, err := goose.EnsureDBVersion(db)
+	if err != nil {
+		return fmt.Errorf("checking goose version: %w", err)
+	}
+	if version >= 1 {
+		return nil // migration 00001 already tracked, nothing to adopt
+	}
+
+	var tableName string
+	err = db.QueryRow("SHOW TABLES LIKE 'students'").Scan(&tableName)
+	if err == sql.ErrNoRows {
+		return nil // table doesn't exist yet, let goose create it normally
+	}
+	if err != nil {
+		return fmt.Errorf("checking for existing students table: %w", err)
+	}
+
+	expected, err := expectedCreateTableSQL()
+	if err != nil {
+		return err
+	}
+
+	var actualTable, actualDDL string
+	if err := db.QueryRow("SHOW CREATE TABLE students").Scan(&actualTable, &actualDDL); err != nil {
+		return fmt.Errorf("reading existing students table schema: %w", err)
+	}
+
+	if normalizeSQL(actualDDL) != normalizeSQL(expected) {
+		return fmt.Errorf("existing schema does not match migrations/00001_create_students_table.sql - manual review required\nexisting:\n%s\nexpected:\n%s", actualDDL, expected)
+	}
+
+	slog.Info("existing students table matches migration 00001 - marking as applied instead of recreating")
+	if _, err := db.Exec("INSERT INTO goose_db_version (version_id, is_applied) VALUES (1, true)"); err != nil {
+		return fmt.Errorf("marking migration 00001 as applied: %w", err)
+	}
+	return nil
+}
+
+func expectedCreateTableSQL() (string, error) {
+	content, err := os.ReadFile(migrationsDir + "/00001_create_students_table.sql")
+	if err != nil {
+		return "", fmt.Errorf("reading migration file: %w", err)
+	}
+	up := strings.Split(string(content), "-- +goose Down")[0]
+	up = strings.Replace(up, "-- +goose Up", "", 1)
+	up = strings.TrimSuffix(strings.TrimSpace(up), ";")
+	return up, nil
+}
+
+func normalizeSQL(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
