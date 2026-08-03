@@ -157,3 +157,39 @@ func TestUpdateStudent_NotFound(t *testing.T) {
 	w := doRequest(router, http.MethodPut, "/api/v1/student/999999", updateBody)
 	assert.Equal(t, http.StatusNotFound, w.Code, "expected 404 for updating a nonexistent student: %s", w.Body.String())
 }
+
+// TestCreateStudent_MissingRequiredField covers syntactically valid JSON
+// that's simply missing required fields - a different failure path than
+// the malformed-JSON cases in StudentController_test.go, which never
+// exercised the binding:"required" validation.
+func TestCreateStudent_MissingRequiredField(t *testing.T) {
+	router := setupRouter()
+
+	w := doRequest(router, http.MethodPost, "/api/v1/students", `{"name": "Alice"}`)
+
+	require.Equal(t, http.StatusBadRequest, w.Code, "expected 400 for missing required fields: %s", w.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "Email")
+	assert.Contains(t, resp["error"], "Age")
+	assert.Contains(t, resp["error"], "Class")
+	assert.Contains(t, resp["error"], "Department")
+}
+
+// TestUpdateStudent_MissingRequiredField covers the same gap as
+// TestCreateStudent_MissingRequiredField, for the Update path.
+func TestUpdateStudent_MissingRequiredField(t *testing.T) {
+	router := setupRouter()
+
+	w := doRequest(router, http.MethodPut, "/api/v1/student/999999", `{"name": "Alice"}`)
+
+	require.Equal(t, http.StatusBadRequest, w.Code, "expected 400 for missing required fields: %s", w.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "Email")
+	assert.Contains(t, resp["error"], "Age")
+	assert.Contains(t, resp["error"], "Class")
+	assert.Contains(t, resp["error"], "Department")
+}
