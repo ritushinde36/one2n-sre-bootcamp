@@ -16,6 +16,9 @@ import (
 const migrationsDir = "migrations"
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	goose.SetLogger(&slogGooseLogger{})
+
 	config.LoadConfig()
 
 	dsn := os.Getenv("DSN")
