@@ -2,9 +2,11 @@ package connections
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
@@ -50,7 +52,7 @@ func (l *slogGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 	sql, rows := fc()
 	attrs := []any{"sql", sql, "rows", rows, "elapsed_ms", time.Since(begin).Milliseconds()}
 
-	if err != nil && l.level >= logger.Error {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) && l.level >= logger.Error {
 		slog.Error("gorm query failed", append(attrs, "error", err)...)
 		return
 	}
