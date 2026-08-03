@@ -116,7 +116,21 @@ func DeleteStudent(c *gin.Context) {
 
 }
 
+// HealthCheck is a liveness check - it only confirms the process itself is
+// alive and can respond to HTTP, with no external dependencies checked.
+// Safe to use as a Kubernetes liveness probe: a failure here means the
+// process itself is broken and should be restarted.
 func HealthCheck(c *gin.Context) {
+	slog.Debug("healthcheck ping")
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// ReadyCheck is a readiness check - it confirms the app can currently serve
+// real traffic, including that its database dependency is reachable. Safe
+// to use as a Kubernetes readiness probe: a failure here should stop
+// traffic being routed here, without restarting the process, since
+// restarting won't fix an external dependency being down.
+func ReadyCheck(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 	defer cancel()
 
@@ -125,11 +139,11 @@ func HealthCheck(c *gin.Context) {
 		err = sqlDB.PingContext(ctx)
 	}
 	if err != nil {
-		slog.Error("healthcheck failed: database unreachable", "error", err)
+		slog.Error("readycheck failed: database unreachable", "error", err)
 		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "database": "unreachable"})
 		return
 	}
 
-	slog.Debug("healthcheck ping")
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	slog.Debug("readycheck ping")
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "database": "reachable"})
 }

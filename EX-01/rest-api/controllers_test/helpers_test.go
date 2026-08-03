@@ -28,6 +28,7 @@ func setupRouter() *gin.Engine {
 	router.PUT("/api/v1/student/:id", controllers.UpdateStudent)
 	router.DELETE("/api/v1/student/:id", controllers.DeleteStudent)
 	router.GET("/healthcheck", controllers.HealthCheck)
+	router.GET("/readyz", controllers.ReadyCheck)
 	return router
 }
 

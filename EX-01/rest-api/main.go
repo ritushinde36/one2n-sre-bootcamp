@@ -34,6 +34,7 @@ func main() {
 	v1.DELETE("/student/:id", controllers.DeleteStudent)
 
 	router.GET("/healthcheck", controllers.HealthCheck)
+	router.GET("/readyz", controllers.ReadyCheck)
 
 	//running the router to listen on localhost
 	port := os.Getenv("PORT")

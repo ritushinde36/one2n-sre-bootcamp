@@ -11,8 +11,8 @@ import (
 	"github.com/ritushinde36/one2n-sre-bootcamp/models"
 )
 
-// TestHealthCheck was never invoked by any test before this; confirms the
-// endpoint responds and reports healthy.
+// TestHealthCheck confirms the liveness endpoint responds without checking
+// any external dependency.
 func TestHealthCheck(t *testing.T) {
 	router := setupRouter()
 
@@ -22,6 +22,20 @@ func TestHealthCheck(t *testing.T) {
 	var resp map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, "ok", resp["status"])
+}
+
+// TestReadyCheck confirms the readiness endpoint reports healthy when the
+// database is actually reachable, with a consistent response shape.
+func TestReadyCheck(t *testing.T) {
+	router := setupRouter()
+
+	w := doRequest(router, http.MethodGet, "/readyz", "")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "ok", resp["status"])
+	assert.Equal(t, "reachable", resp["database"])
 }
 
 // TestGetAllStudents was never invoked by any test before this; confirms

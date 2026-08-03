@@ -76,7 +76,8 @@ http://localhost:8888
 | POST | /api/v1/students | Create a new student |
 | PUT | /api/v1/student/:id | Update a student by ID |
 | DELETE | /api/v1/student/:id | Delete a student by ID |
-| GET | /healthcheck | Check API health |
+| GET | /healthcheck | Liveness check - is the process itself running |
+| GET | /readyz | Readiness check - can the app reach its database |
 
 ## Sample Request Body
 
