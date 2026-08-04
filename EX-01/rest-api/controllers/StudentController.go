@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,11 +31,16 @@ func GetAllStudents(c *gin.Context) {
 // get the record of a particular user
 func GetStudent(c *gin.Context) {
 	student_id := c.Param("id")
-	var student models.Student
 
-	err := connections.DB.First(&student, student_id).Error
-
+	id, err := strconv.ParseUint(student_id, 10, 64)
 	if err != nil {
+		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
+		return
+	}
+
+	var student models.Student
+	if err := connections.DB.First(&student, id).Error; err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
 		return
@@ -92,6 +98,13 @@ func CreateStudent(c *gin.Context) {
 func UpdateStudent(c *gin.Context) {
 	student_id := c.Param("id")
 
+	id, err := strconv.ParseUint(student_id, 10, 64)
+	if err != nil {
+		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
+		return
+	}
+
 	var req StudentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Warn("invalid student payload", "student_id", student_id, "error", err)
@@ -100,7 +113,7 @@ func UpdateStudent(c *gin.Context) {
 	}
 
 	var student models.Student
-	err := connections.DB.First(&student, student_id).Error
+	err = connections.DB.First(&student, id).Error
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
@@ -133,7 +146,15 @@ func UpdateStudent(c *gin.Context) {
 // Delete the record of the student
 func DeleteStudent(c *gin.Context) {
 	student_id := c.Param("id")
-	result := connections.DB.Unscoped().Delete(&models.Student{}, student_id)
+
+	id, err := strconv.ParseUint(student_id, 10, 64)
+	if err != nil {
+		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
+		return
+	}
+
+	result := connections.DB.Unscoped().Delete(&models.Student{}, id)
 	if result.Error != nil {
 		slog.Error("failed to delete student", "student_id", student_id, "error", result.Error)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to delete student"})
