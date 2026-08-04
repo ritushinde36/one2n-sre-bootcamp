@@ -120,15 +120,13 @@ func UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	updated_student := models.Student{
-		Name:       req.Name,
-		Email:      req.Email,
-		Age:        req.Age,
-		Class:      req.Class,
-		Department: req.Department,
-	}
-
-	result := connections.DB.Model(&student).Updates(updated_student)
+	result := connections.DB.Model(&student).Updates(map[string]any{
+		"name":       req.Name,
+		"email":      req.Email,
+		"age":        req.Age,
+		"class":      req.Class,
+		"department": req.Department,
+	})
 	if result.Error != nil {
 		slog.Error("failed to update student", "student_id", student_id, "error", result.Error)
 		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
