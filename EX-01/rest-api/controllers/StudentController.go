@@ -118,7 +118,11 @@ func UpdateStudent(c *gin.Context) {
 	result := connections.DB.Model(&student).Updates(updated_student)
 	if result.Error != nil {
 		slog.Error("failed to update student", "student_id", student_id, "error", result.Error)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			c.JSON(http.StatusConflict, gin.H{"error": "a student with this email already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to update student"})
 		return
 	}
 
