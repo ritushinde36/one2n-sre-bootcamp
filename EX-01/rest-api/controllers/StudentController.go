@@ -16,8 +16,18 @@ import (
 
 // get the records of all the students
 func GetAllStudents(c *gin.Context) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil || limit <= 0 {
+		limit = 50
+	}
+
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
 	var all_students []models.Student
-	result := connections.DB.Find(&all_students)
+	result := connections.DB.Limit(limit).Offset(offset).Find(&all_students)
 	if result.Error != nil {
 		slog.Error("failed to fetch students", "error", result.Error)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to get all student records"})
