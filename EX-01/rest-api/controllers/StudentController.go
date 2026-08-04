@@ -45,15 +45,36 @@ func GetStudent(c *gin.Context) {
 
 }
 
+// StudentRequest is what a client is allowed to set when creating or
+// updating a student - deliberately excludes gorm.Model's ID/CreatedAt/
+// UpdatedAt/DeletedAt fields, since models.Student embeds them with no
+// json:"-" tags (it's a third-party struct, not ours to add tags to), so
+// binding directly into models.Student would let a client set them itself.
+type StudentRequest struct {
+	Name       string `json:"name" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Age        int    `json:"age" binding:"required,gt=0"`
+	Class      string `json:"class" binding:"required"`
+	Department string `json:"department" binding:"required"`
+}
+
 // create a Student
 func CreateStudent(c *gin.Context) {
-	var new_student models.Student
-	err := c.ShouldBindJSON(&new_student)
-	if err != nil {
+	var req StudentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Warn("invalid student payload", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	new_student := models.Student{
+		Name:       req.Name,
+		Email:      req.Email,
+		Age:        req.Age,
+		Class:      req.Class,
+		Department: req.Department,
+	}
+
 	if err := connections.DB.Create(&new_student).Error; err != nil {
 		slog.Error("failed to create student", "error", err)
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -71,8 +92,8 @@ func CreateStudent(c *gin.Context) {
 func UpdateStudent(c *gin.Context) {
 	student_id := c.Param("id")
 
-	var updated_student models.Student
-	if err := c.ShouldBindJSON(&updated_student); err != nil {
+	var req StudentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Warn("invalid student payload", "student_id", student_id, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -84,6 +105,14 @@ func UpdateStudent(c *gin.Context) {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
 		return
+	}
+
+	updated_student := models.Student{
+		Name:       req.Name,
+		Email:      req.Email,
+		Age:        req.Age,
+		Class:      req.Class,
+		Department: req.Department,
 	}
 
 	result := connections.DB.Model(&student).Updates(updated_student)

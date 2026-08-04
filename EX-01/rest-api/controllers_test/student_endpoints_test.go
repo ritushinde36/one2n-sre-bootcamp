@@ -193,3 +193,40 @@ func TestUpdateStudent_MissingRequiredField(t *testing.T) {
 	assert.Contains(t, resp["error"], "Class")
 	assert.Contains(t, resp["error"], "Department")
 }
+
+// TestCreateStudent_RejectsUnknownFields covers the mass-assignment fix - a
+// client including a field like ID that doesn't exist on StudentRequest
+// should be rejected outright, not silently ignored.
+func TestCreateStudent_RejectsUnknownFields(t *testing.T) {
+	router := setupRouter()
+
+	body := `{"ID": 111, "name": "sam Smith", "email": "unknown-field-test@example.com", "age": 21, "class": "11th", "department": "Music"}`
+	w := doRequest(router, http.MethodPost, "/api/v1/students", body)
+
+	require.Equal(t, http.StatusBadRequest, w.Code, "expected 400 for unknown field: %s", w.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "ID")
+}
+
+// TestUpdateStudent_RejectsUnknownFields covers the same gap for Update.
+func TestUpdateStudent_RejectsUnknownFields(t *testing.T) {
+	router := setupRouter()
+
+	createBody := `{"name":"Frank","email":"frank-unknown-field@example.com","age":22,"class":"9th","department":"CS"}`
+	w := doRequest(router, http.MethodPost, "/api/v1/students", createBody)
+	require.Equal(t, http.StatusCreated, w.Code, "create should succeed: %s", w.Body.String())
+
+	var created models.Student
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+
+	updateBody := `{"DeletedAt": "2020-01-01T00:00:00Z", "name":"Frank","email":"frank-unknown-field@example.com","age":22,"class":"9th","department":"CS"}`
+	w = doRequest(router, http.MethodPut, studentPath(created.ID), updateBody)
+
+	require.Equal(t, http.StatusBadRequest, w.Code, "expected 400 for unknown field: %s", w.Body.String())
+
+	var resp2 map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp2))
+	assert.Contains(t, resp2["error"], "DeletedAt")
+}

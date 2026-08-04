@@ -9,12 +9,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/ritushinde36/one2n-sre-bootcamp/controllers"
 )
 
 func init() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	// Tests bypass main(), so this global Gin setting has to be set here too
+	// for tests to actually exercise the strict unknown-field behavior.
+	binding.EnableDecoderDisallowUnknownFields = true
 }
 
 // setupRouter builds a router wired to the real controller functions, same

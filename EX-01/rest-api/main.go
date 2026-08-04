@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/ritushinde36/one2n-sre-bootcamp/config"
 	"github.com/ritushinde36/one2n-sre-bootcamp/connections"
 	"github.com/ritushinde36/one2n-sre-bootcamp/controllers"
@@ -13,6 +14,11 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	// Reject unknown fields in JSON request bodies (e.g. a client trying to
+	// set gorm.Model's ID/CreatedAt/DeletedAt) instead of silently ignoring
+	// them.
+	binding.EnableDecoderDisallowUnknownFields = true
 
 	//loading the env veriables
 	config.LoadConfig()
