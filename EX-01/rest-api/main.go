@@ -23,6 +23,14 @@ func main() {
 	//loading the env veriables
 	config.LoadConfig()
 
+	// Gin's own package init() reads GIN_MODE from the OS environment before
+	// main() ever runs, so it can't see a value that only gets set once
+	// config.LoadConfig() parses .env. Re-apply it here now that .env has
+	// actually been loaded.
+	if mode := os.Getenv("GIN_MODE"); mode != "" {
+		gin.SetMode(mode)
+	}
+
 	// connect to the mysql
 	connections.Connect_to_DB()
 
