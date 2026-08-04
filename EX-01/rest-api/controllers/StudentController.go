@@ -20,7 +20,7 @@ func GetAllStudents(c *gin.Context) {
 	result := connections.DB.Find(&all_students)
 	if result.Error != nil {
 		slog.Error("failed to fetch students", "error", result.Error)
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Unable to get all student records"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to get all student records"})
 		return
 	}
 	slog.Info("fetched all students", "count", len(all_students))
@@ -42,7 +42,7 @@ func GetStudent(c *gin.Context) {
 	var student models.Student
 	if err := connections.DB.First(&student, id).Error; err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
-		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
 	}
 
@@ -116,7 +116,7 @@ func UpdateStudent(c *gin.Context) {
 	err = connections.DB.First(&student, id).Error
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
-		c.JSON(http.StatusNotFound, gin.H{"message": "Unable to get the student"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
 	}
 
