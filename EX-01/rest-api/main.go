@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -56,9 +61,33 @@ func main() {
 		port = "8888"
 	}
 
-	slog.Info("starting server", "port", port)
-	if err := router.Run(":" + port); err != nil {
-		slog.Error("server stopped unexpectedly", "error", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
+
+	go func() {
+		slog.Info("starting server", "port", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server stopped unexpectedly", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Catch SIGTERM/SIGINT so a deploy or container restart gets a chance to
+	// drain in-flight requests instead of killing the process mid-request.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	slog.Info("received shutdown signal, draining in-flight requests", "signal", sig.String())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("graceful shutdown failed", "error", err)
 		os.Exit(1)
 	}
+
+	slog.Info("server shut down cleanly")
 }
