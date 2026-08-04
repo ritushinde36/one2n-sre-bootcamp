@@ -53,13 +53,11 @@ func TestGetAllStudents(t *testing.T) {
 	w = doRequest(router, http.MethodGet, "/api/v1/students", "")
 	require.Equal(t, http.StatusOK, w.Code, "list should succeed: %s", w.Body.String())
 
-	var resp struct {
-		Message []models.Student `json:"message"`
-	}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	var students []models.Student
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &students))
 
 	found := false
-	for _, s := range resp.Message {
+	for _, s := range students {
 		if s.ID == created.ID {
 			found = true
 			assert.Equal(t, "Bob", s.Name)

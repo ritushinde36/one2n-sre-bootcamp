@@ -24,7 +24,7 @@ func GetAllStudents(c *gin.Context) {
 		return
 	}
 	slog.Info("fetched all students", "count", len(all_students))
-	c.JSON(http.StatusOK, gin.H{"message": all_students})
+	c.JSON(http.StatusOK, all_students)
 
 }
 
