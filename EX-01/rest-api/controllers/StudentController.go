@@ -27,7 +27,7 @@ func GetAllStudents(c *gin.Context) {
 	}
 
 	var all_students []models.Student
-	result := connections.DB.Limit(limit).Offset(offset).Find(&all_students)
+	result := connections.DB.WithContext(c.Request.Context()).Limit(limit).Offset(offset).Find(&all_students)
 	if result.Error != nil {
 		slog.Error("failed to fetch students", "error", result.Error)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to get all student records"})
@@ -50,7 +50,7 @@ func GetStudent(c *gin.Context) {
 	}
 
 	var student models.Student
-	if err := connections.DB.First(&student, id).Error; err != nil {
+	if err := connections.DB.WithContext(c.Request.Context()).First(&student, id).Error; err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
@@ -91,7 +91,7 @@ func CreateStudent(c *gin.Context) {
 		Department: req.Department,
 	}
 
-	if err := connections.DB.Create(&new_student).Error; err != nil {
+	if err := connections.DB.WithContext(c.Request.Context()).Create(&new_student).Error; err != nil {
 		slog.Error("failed to create student", "error", err)
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "a student with this email already exists"})
@@ -123,14 +123,14 @@ func UpdateStudent(c *gin.Context) {
 	}
 
 	var student models.Student
-	err = connections.DB.First(&student, id).Error
+	err = connections.DB.WithContext(c.Request.Context()).First(&student, id).Error
 	if err != nil {
 		slog.Warn("student not found", "student_id", student_id, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
 	}
 
-	result := connections.DB.Model(&student).Updates(map[string]any{
+	result := connections.DB.WithContext(c.Request.Context()).Model(&student).Updates(map[string]any{
 		"name":       req.Name,
 		"email":      req.Email,
 		"age":        req.Age,
@@ -162,7 +162,7 @@ func DeleteStudent(c *gin.Context) {
 		return
 	}
 
-	result := connections.DB.Unscoped().Delete(&models.Student{}, id)
+	result := connections.DB.WithContext(c.Request.Context()).Unscoped().Delete(&models.Student{}, id)
 	if result.Error != nil {
 		slog.Error("failed to delete student", "student_id", student_id, "error", result.Error)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to delete student"})
