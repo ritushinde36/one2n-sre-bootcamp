@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -52,7 +53,7 @@ func main() {
 		}
 	}
 
-	if err := goose.Run(command, db, migrationsDir); err != nil {
+	if err := goose.RunContext(context.Background(), command, db, migrationsDir); err != nil {
 		slog.Error("migration failed", "command", command, "error", err)
 		os.Exit(1)
 	}
