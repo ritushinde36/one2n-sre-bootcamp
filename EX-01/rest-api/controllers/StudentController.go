@@ -26,37 +26,37 @@ func GetAllStudents(c *gin.Context) {
 		offset = 0
 	}
 
-	var all_students []models.Student
-	result := connections.DB.WithContext(c.Request.Context()).Limit(limit).Offset(offset).Find(&all_students)
+	var allStudents []models.Student
+	result := connections.DB.WithContext(c.Request.Context()).Limit(limit).Offset(offset).Find(&allStudents)
 	if result.Error != nil {
 		slog.Error("failed to fetch students", "error", result.Error)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to get all student records"})
 		return
 	}
-	slog.Info("fetched all students", "count", len(all_students))
-	c.JSON(http.StatusOK, all_students)
+	slog.Info("fetched all students", "count", len(allStudents))
+	c.JSON(http.StatusOK, allStudents)
 
 }
 
 // get the record of a particular user
 func GetStudent(c *gin.Context) {
-	student_id := c.Param("id")
+	studentID := c.Param("id")
 
-	id, err := strconv.ParseUint(student_id, 10, 64)
+	id, err := strconv.ParseUint(studentID, 10, 64)
 	if err != nil {
-		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		slog.Warn("invalid student id", "student_id", studentID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
 		return
 	}
 
 	var student models.Student
 	if err := connections.DB.WithContext(c.Request.Context()).First(&student, id).Error; err != nil {
-		slog.Warn("student not found", "student_id", student_id, "error", err)
+		slog.Warn("student not found", "student_id", studentID, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
 	}
 
-	slog.Info("fetched student", "student_id", student_id)
+	slog.Info("fetched student", "student_id", studentID)
 	c.JSON(http.StatusOK, student)
 
 }
@@ -83,7 +83,7 @@ func CreateStudent(c *gin.Context) {
 		return
 	}
 
-	new_student := models.Student{
+	newStudent := models.Student{
 		Name:       req.Name,
 		Email:      req.Email,
 		Age:        req.Age,
@@ -91,7 +91,7 @@ func CreateStudent(c *gin.Context) {
 		Department: req.Department,
 	}
 
-	if err := connections.DB.WithContext(c.Request.Context()).Create(&new_student).Error; err != nil {
+	if err := connections.DB.WithContext(c.Request.Context()).Create(&newStudent).Error; err != nil {
 		slog.Error("failed to create student", "error", err)
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "a student with this email already exists"})
@@ -100,24 +100,24 @@ func CreateStudent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to create student"})
 		return
 	}
-	slog.Info("created student", "student_id", new_student.ID)
-	c.JSON(http.StatusCreated, new_student)
+	slog.Info("created student", "student_id", newStudent.ID)
+	c.JSON(http.StatusCreated, newStudent)
 
 }
 
 func UpdateStudent(c *gin.Context) {
-	student_id := c.Param("id")
+	studentID := c.Param("id")
 
-	id, err := strconv.ParseUint(student_id, 10, 64)
+	id, err := strconv.ParseUint(studentID, 10, 64)
 	if err != nil {
-		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		slog.Warn("invalid student id", "student_id", studentID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
 		return
 	}
 
 	var req StudentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.Warn("invalid student payload", "student_id", student_id, "error", err)
+		slog.Warn("invalid student payload", "student_id", studentID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -125,7 +125,7 @@ func UpdateStudent(c *gin.Context) {
 	var student models.Student
 	err = connections.DB.WithContext(c.Request.Context()).First(&student, id).Error
 	if err != nil {
-		slog.Warn("student not found", "student_id", student_id, "error", err)
+		slog.Warn("student not found", "student_id", studentID, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Unable to get the student"})
 		return
 	}
@@ -138,7 +138,7 @@ func UpdateStudent(c *gin.Context) {
 		"department": req.Department,
 	})
 	if result.Error != nil {
-		slog.Error("failed to update student", "student_id", student_id, "error", result.Error)
+		slog.Error("failed to update student", "student_id", studentID, "error", result.Error)
 		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "a student with this email already exists"})
 			return
@@ -147,33 +147,33 @@ func UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	slog.Info("updated student", "student_id", student_id)
+	slog.Info("updated student", "student_id", studentID)
 	c.JSON(http.StatusOK, student)
 }
 
 // Delete the record of the student
 func DeleteStudent(c *gin.Context) {
-	student_id := c.Param("id")
+	studentID := c.Param("id")
 
-	id, err := strconv.ParseUint(student_id, 10, 64)
+	id, err := strconv.ParseUint(studentID, 10, 64)
 	if err != nil {
-		slog.Warn("invalid student id", "student_id", student_id, "error", err)
+		slog.Warn("invalid student id", "student_id", studentID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
 		return
 	}
 
 	result := connections.DB.WithContext(c.Request.Context()).Unscoped().Delete(&models.Student{}, id)
 	if result.Error != nil {
-		slog.Error("failed to delete student", "student_id", student_id, "error", result.Error)
+		slog.Error("failed to delete student", "student_id", studentID, "error", result.Error)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to delete student"})
 		return
 	}
 	if result.RowsAffected == 0 {
-		slog.Warn("student not found", "student_id", student_id)
+		slog.Warn("student not found", "student_id", studentID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "student not found"})
 		return
 	}
-	slog.Info("deleted student", "student_id", student_id)
+	slog.Info("deleted student", "student_id", studentID)
 	c.JSON(http.StatusOK, gin.H{"message": "student deleted"})
 
 }
