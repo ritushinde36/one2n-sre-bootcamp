@@ -43,10 +43,10 @@ CREATE DATABASE student_db;
 go mod tidy
 ```
 
-3. Create a `.env` file in the project root with your MySQL DSN:
+3. Copy `.env.example` to `.env` and fill in your MySQL DSN (see `.env.example` for all supported environment variables, `DSN` and `PORT`, and their defaults):
 
 ```bash
-DSN=root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+cp .env.example .env
 ```
 
 4. Run database migrations to create the schema:
