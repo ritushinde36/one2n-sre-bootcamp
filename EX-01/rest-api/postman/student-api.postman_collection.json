@@ -89,9 +89,9 @@
 							"",
 							"pm.test(\"Response has an id and correct fields\", function () {",
 							"    const jsonData = pm.response.json();",
-							"    pm.expect(jsonData.ID).to.be.a(\"number\");",
+							"    pm.expect(jsonData.id).to.be.a(\"number\");",
 							"    pm.expect(jsonData.name).to.eql(\"John Doe\");",
-							"    pm.collectionVariables.set(\"student_id\", jsonData.ID);",
+							"    pm.collectionVariables.set(\"student_id\", jsonData.id);",
 							"});"
 						]
 					}
@@ -169,7 +169,7 @@
 							"",
 							"pm.test(\"Returned student matches created id\", function () {",
 							"    const jsonData = pm.response.json();",
-							"    pm.expect(jsonData.ID.toString()).to.eql(pm.collectionVariables.get(\"student_id\").toString());",
+							"    pm.expect(jsonData.id.toString()).to.eql(pm.collectionVariables.get(\"student_id\").toString());",
 							"});"
 						]
 					}
