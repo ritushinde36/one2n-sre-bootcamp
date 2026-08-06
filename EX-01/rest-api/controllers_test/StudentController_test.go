@@ -1,34 +1,12 @@
 package controllers_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/ritushinde36/one2n-sre-bootcamp/controllers"
 )
-
-func setupValidationRouter() *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	router.POST("/students", controllers.CreateStudent)
-	router.PUT("/student/:id", controllers.UpdateStudent)
-	return router
-}
-
-func performJSONRequest(router *gin.Engine, method, path, rawBody string) *httptest.ResponseRecorder {
-	req, _ := http.NewRequest(method, path, bytes.NewBufferString(rawBody))
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	return w
-}
 
 func TestCreateStudent(t *testing.T) {
 	tests := []struct {
@@ -71,9 +49,9 @@ func TestCreateStudent(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			router := setupValidationRouter()
+			router := setupRouter()
 
-			w := performJSONRequest(router, http.MethodPost, "/students", tt.rawBody)
+			w := doRequest(router, http.MethodPost, "/api/v1/students", tt.rawBody)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 
@@ -126,11 +104,11 @@ func TestUpdateStudent(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			router := setupValidationRouter()
+			router := setupRouter()
 
 			// The id itself doesn't matter for these cases, because
 			// JSON validation now happens before any DB lookup.
-			w := performJSONRequest(router, http.MethodPut, "/student/1", tt.rawBody)
+			w := doRequest(router, http.MethodPut, "/api/v1/student/1", tt.rawBody)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 

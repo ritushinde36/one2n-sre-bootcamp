@@ -1,0 +1,365 @@
+{
+	"info": {
+		"name": "Student REST API",
+		"description": "Requests for the Student CRUD REST API (Go + Gin + GORM + MySQL). Set the base_url variable to wherever the server is running. Requests run top-to-bottom (e.g. via 'newman run postman/student-api.postman_collection.json'); 'Create Student' captures the created student's ID into the student_id variable used by later requests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8888",
+			"type": "string"
+		},
+		{
+			"key": "student_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"status is ok\", function () {",
+							"    pm.expect(pm.response.json().status).to.eql(\"ok\");",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/healthcheck",
+					"host": ["{{base_url}}"],
+					"path": ["healthcheck"]
+				}
+			}
+		},
+		{
+			"name": "Get All Students",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array\", function () {",
+							"    pm.expect(pm.response.json()).to.be.an(\"array\");",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/students",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "students"]
+				}
+			}
+		},
+		{
+			"name": "Create Student",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Response has an id and correct fields\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.id).to.be.a(\"number\");",
+							"    pm.expect(jsonData.name).to.eql(\"John Doe\");",
+							"    pm.collectionVariables.set(\"student_id\", jsonData.id);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"age\": 20,\n  \"class\": \"10th\",\n  \"department\": \"CS\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/students",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "students"]
+				}
+			}
+		},
+		{
+			"name": "Create Student - Missing Required Field (should fail)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 400\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"pm.test(\"Error mentions missing field\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.error).to.include(\"Email\");",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Incomplete\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/students",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "students"]
+				}
+			}
+		},
+		{
+			"name": "Get Student By ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Returned student matches created id\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.id.toString()).to.eql(pm.collectionVariables.get(\"student_id\").toString());",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/{{student_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "{{student_id}}"]
+				}
+			}
+		},
+		{
+			"name": "Get Student By ID - Not Found (should fail)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/999999999",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "999999999"]
+				}
+			}
+		},
+		{
+			"name": "Get Student By ID - Invalid ID (should fail)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 400\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"pm.test(\"Error mentions invalid id\", function () {",
+							"    pm.expect(pm.response.json().error).to.eql(\"invalid student id\");",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/abc",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "abc"]
+				}
+			}
+		},
+		{
+			"name": "Update Student",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Name was updated\", function () {",
+							"    pm.expect(pm.response.json().name).to.eql(\"John Doe Updated\");",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"John Doe Updated\",\n  \"email\": \"john@example.com\",\n  \"age\": 21,\n  \"class\": \"11th\",\n  \"department\": \"CS\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/{{student_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "{{student_id}}"]
+				}
+			}
+		},
+		{
+			"name": "Update Student - Not Found (should fail)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Ghost\",\n  \"email\": \"ghost@example.com\",\n  \"age\": 1,\n  \"class\": \"1st\",\n  \"department\": \"CS\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/999999999",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "999999999"]
+				}
+			}
+		},
+		{
+			"name": "Delete Student - Not Found (should fail)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/999999999",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "999999999"]
+				}
+			}
+		},
+		{
+			"name": "Delete Student",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/student/{{student_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "student", "{{student_id}}"]
+				}
+			}
+		}
+	]
+}
