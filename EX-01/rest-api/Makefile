@@ -1,8 +1,9 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-network docker-mysql-up docker-mysql-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down
 
 IMAGE_NAME := student-rest-api
 VERSION := $(shell git describe --tags --always --dirty)
 NETWORK_NAME := student-api-net
+APP_CONTAINER := student-rest-api
 MYSQL_CONTAINER := student-mysql
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env.docker
@@ -62,7 +63,16 @@ docker-build:
 # Requires .env.docker (DSN pointing at the student-mysql container) and the
 # network/mysql container to already be up - see docker-network/docker-mysql-up.
 docker-run: docker-network
-	docker run -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
+	docker run -d --name $(APP_CONTAINER) -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
+
+# sends SIGTERM so the app's own graceful shutdown gets a chance to drain
+# in-flight requests, saves its logs (removing the container would discard
+# them otherwise), then removes the stopped container.
+docker-down:
+	docker stop $(APP_CONTAINER)
+	mkdir -p logs
+	docker logs $(APP_CONTAINER) > logs/$(APP_CONTAINER)-$$(date +%Y%m%d-%H%M%S).log 2>&1
+	docker rm $(APP_CONTAINER)
 
 docker-network:
 	docker network inspect $(NETWORK_NAME) >/dev/null 2>&1 || docker network create $(NETWORK_NAME)
