@@ -12,6 +12,7 @@ A Go-based REST API for doing CRUD operations on student records, built with Gin
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
 - [Running the App](#running-the-app)
+- [Running with Docker](#running-with-docker)
 - [Database Migrations](#database-migrations)
 - [API Reference](#api-reference)
 - [Postman Collection](#postman-collection)
@@ -102,6 +103,8 @@ rest-api/
 ├── Makefile                       # build / run / test / migrate-* targets
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables
+├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
+├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv
@@ -142,7 +145,7 @@ rest-api/
 
 - [Go](https://go.dev/dl/) (version matching [go.mod](go.mod), currently 1.26.5+)
 - A running MySQL server reachable from your machine (local install, or any MySQL 8-compatible instance).
-- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Not required to run the app itself.
+- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker).
 
 ## Setup
 
@@ -204,9 +207,81 @@ The [Makefile](Makefile) defines the standard entry points:
 
 You can also run directly with `go run .` once `.env` is in place and migrations have been applied.
 
+## Running with Docker
+
+The app can also be built and run as a container, without a local Go toolchain. This uses a separate MySQL container instead of a locally installed MySQL server.
+
+**Files involved:**
+
+- [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
+- [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Runs `migrate up` to apply any pending migrations, then `exec`s into `rest-api`. Since goose tracks applied migrations in the `goose_db_version` table, this is safe to run on every container start — a container with nothing new to apply just logs `no migrations to run` and moves on.
+- [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
+- `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
+
+**1. Create `.env.docker`** in the project root:
+
+```
+MYSQL_ROOT_PASSWORD=rootpass
+MYSQL_DATABASE=student_db
+DSN=root:rootpass@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+PORT=8888
+```
+
+`student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine.
+
+**2. Start a MySQL container:**
+
+```bash
+make docker-mysql-up
+```
+
+Creates the `student-api-net` Docker network (if it doesn't already exist) and starts a `mysql:8.0` container named `student-mysql` on it, with data persisted in the `student-mysql-data` volume and port `3306` published to the host.
+
+**3. Build the image:**
+
+```bash
+make docker-build
+```
+
+Builds `student-rest-api:<version>`, where `<version>` comes from `git describe --tags --always --dirty`.
+
+**4. Run the app container:**
+
+```bash
+make docker-run
+```
+
+Runs the image detached, named `student-rest-api`, on the `student-api-net` network with `.env.docker` as its environment file, publishing port `8888`. On start, the container's entrypoint applies any pending migrations against the `student-mysql` container before starting the server — no separate migration step needed. The app connects to MySQL using the container-to-container `DSN` from `.env.docker`. Tail its logs with `docker logs -f student-rest-api`.
+
+**5. Verify:**
+
+```bash
+curl http://localhost:8888/healthcheck
+curl http://localhost:8888/readyz
+```
+
+**Cleanup:**
+
+```bash
+make docker-down       # gracefully stops (SIGTERM), saves its logs to logs/, and removes the app container
+make docker-mysql-down # removes the MySQL container (the student-mysql-data volume persists)
+docker network rm student-api-net
+```
+
+| Command | What it does |
+|---|---|
+| `make docker-build` | Builds the app image, tagged with the current git version |
+| `make docker-network` | Creates the `student-api-net` Docker network if it doesn't already exist |
+| `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env.docker` |
+| `make docker-run` | Ensures the network exists, then runs the app container detached, using `.env.docker` |
+| `make docker-down` | Gracefully stops the app container, saves its logs to `logs/<container>-<timestamp>.log`, then removes it |
+| `make docker-mysql-down` | Removes the MySQL container |
+
+Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read error other than "file not found" — so running in a container with no `.env` file present (which `.dockerignore` guarantees) is fine; environment variables passed via `--env-file` are picked up directly.
+
 ## Database Migrations
 
-Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files:
+Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install — if you're using the [Docker workflow](#running-with-docker), `make docker-run` applies pending migrations automatically on container start.)
 
 - `00001_create_students_table.sql` — creates the `students` table
 - `00002_add_not_null_constraints.sql` — tightens `name`/`email`/`age`/`class`/`department` to `NOT NULL`
