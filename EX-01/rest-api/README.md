@@ -218,6 +218,8 @@ The app can also be built and run as a container, without a local Go toolchain. 
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
 - [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
+- `secrets/` — gitignored directory of credential files (`mysql_root_password.txt`, `dsn.txt`) mounted into containers by Compose's `secrets:` mechanism. Not shipped in the repo; create it yourself (see [Running with Docker Compose](#running-with-docker-compose)).
+- [configs/app.env](configs/app.env) — committed, non-secret runtime settings (`PORT`, `GIN_MODE`) mounted into the `rest-api` container by Compose's `configs:` mechanism.
 
 **1. Create `.env.docker`** in the project root:
 
@@ -284,7 +286,20 @@ Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read
 
 [docker-compose.yml](docker-compose.yml) replaces the manual network/build/run steps above with two services, `mysql` and `rest-api`. Compose creates its own network per project and attaches both services to it automatically, resolving each by service name (or `container_name`) — there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. The `rest-api` service waits for `mysql`'s healthcheck (`mysqladmin ping`) to pass before starting, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet.
 
-With `.env.docker` already created (step 1 above):
+Credentials and runtime settings are split by sensitivity, using Compose's `secrets:`/`configs:` mechanisms instead of plain env vars for the Compose path (the manual `docker-run`/`docker-mysql-up` targets above are unaffected and still read `.env.docker` directly):
+
+- **Secrets** (`mysql_root_password`, `dsn`) — gitignored files under [secrets/](secrets/), each holding one credential. They're mounted as files at `/run/secrets/<name>` inside the container rather than injected as env vars, so they don't show up in `docker inspect` or a container's process environment. `mysql` consumes its password via the official image's built-in `MYSQL_ROOT_PASSWORD_FILE` support; `rest-api` consumes its `DSN` via `DSN_FILE`, resolved by [`config.GetEnv`](config/load_config.go) (checked in [`connections/db_connection.go`](connections/db_connection.go) and [`cmd/migrate`](cmd/migrate/main.go)) — it reads `KEY_FILE` if set, otherwise falls back to a plain `KEY` env var.
+- **Configs** (`app_config` → [configs/app.env](configs/app.env)) — a committed, non-secret settings file (`PORT`, `GIN_MODE`) mounted the same way at `/run/configs/app.env`. Since these aren't sensitive, [docker-entrypoint.sh](docker-entrypoint.sh) just sources the file into the environment before running `migrate`/`rest-api`, which don't have any file-reading convention of their own.
+
+Before first use, create the two secret files under `secrets/` (gitignored, not shipped in the repo):
+
+```bash
+mkdir -p secrets
+echo -n 'rootpass' > secrets/mysql_root_password.txt
+echo -n 'root:rootpass@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local' > secrets/dsn.txt
+```
+
+With those in place (and `.env.docker` created per step 1 above, which the Compose path still uses for `MYSQL_DATABASE` and the host port mapping):
 
 ```bash
 make compose-up

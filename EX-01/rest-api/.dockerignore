@@ -1,5 +1,6 @@
 .env
 .env.docker
+secrets/
 bin/
 controllers_test/
 postman/
