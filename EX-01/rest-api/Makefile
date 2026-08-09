@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down env-setup compose-up compose-down
 
 IMAGE_NAME := student-rest-api
 VERSION := $(shell git describe --tags --always --dirty)
@@ -89,11 +89,29 @@ docker-mysql-up: docker-network
 docker-mysql-down:
 	docker rm -f $(MYSQL_CONTAINER)
 
+# generates .env.docker and the two Compose secret files with dev-friendly
+# defaults, but only if they don't already exist - so a fresh clone needs
+# zero manual file creation, and any file you've customized is left alone.
+env-setup:
+	@if [ ! -f .env.docker ]; then \
+		cp .env.docker.example .env.docker; \
+		echo "created .env.docker from .env.docker.example"; \
+	fi
+	@mkdir -p secrets
+	@if [ ! -f secrets/mysql_root_password.txt ]; then \
+		echo -n 'yourpassword' > secrets/mysql_root_password.txt; \
+		echo "created secrets/mysql_root_password.txt"; \
+	fi
+	@if [ ! -f secrets/dsn.txt ]; then \
+		echo -n 'root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local' > secrets/dsn.txt; \
+		echo "created secrets/dsn.txt"; \
+	fi
+
 # builds the app image and starts both containers via Compose - no manual
-# network/mysql/build steps needed, unlike the docker-* targets above.
-# IMAGE_NAME/VERSION are exported so the image gets tagged the same way
-# docker-build tags it (git version), instead of Compose's default :latest.
-compose-up:
+# network/mysql/build/secret-file steps needed, unlike the docker-* targets
+# above. IMAGE_NAME/VERSION are exported so the image gets tagged the same
+# way docker-build tags it (git version), instead of Compose's default :latest.
+compose-up: env-setup
 	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env.docker up -d --build
 
 # stops and removes both containers (the student-mysql-data volume persists).

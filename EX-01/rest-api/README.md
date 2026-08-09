@@ -218,15 +218,16 @@ The app can also be built and run as a container, without a local Go toolchain. 
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
 - [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
-- `secrets/` — gitignored directory of credential files (`mysql_root_password.txt`, `dsn.txt`) mounted into containers by Compose's `secrets:` mechanism. Not shipped in the repo; create it yourself (see [Running with Docker Compose](#running-with-docker-compose)).
-- [configs/app.env](configs/app.env) — committed, non-secret runtime settings (`PORT`, `GIN_MODE`) mounted into the `rest-api` container by Compose's `configs:` mechanism.
+- `secrets/` — gitignored directory of credential files (`mysql_root_password.txt`, `dsn.txt`) mounted into containers by Compose's `secrets:` mechanism. Not shipped in the repo; `make compose-up` generates both with dev defaults on first run if they're missing (see [Running with Docker Compose](#running-with-docker-compose)).
+- [.env.docker.example](.env.docker.example) — committed template for `.env.docker`; `make compose-up` copies it to `.env.docker` on first run if that file doesn't exist yet.
+- [configs/app.env](configs/app.env) — committed, non-secret runtime settings (`PORT`, `GIN_MODE`, `LOG_FILE`) mounted into the `rest-api` container by Compose's `configs:` mechanism.
 
 **1. Create `.env.docker`** in the project root:
 
 ```
-MYSQL_ROOT_PASSWORD=rootpass
+MYSQL_ROOT_PASSWORD=yourpassword
 MYSQL_DATABASE=student_db
-DSN=root:rootpass@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
 ```
 
@@ -291,32 +292,37 @@ Credentials and runtime settings are split by sensitivity, using Compose's `secr
 - **Secrets** (`mysql_root_password`, `dsn`) — gitignored files under [secrets/](secrets/), each holding one credential. They're mounted as files at `/run/secrets/<name>` inside the container rather than injected as env vars, so they don't show up in `docker inspect` or a container's process environment. `mysql` consumes its password via the official image's built-in `MYSQL_ROOT_PASSWORD_FILE` support; `rest-api` consumes its `DSN` via `DSN_FILE`, resolved by [`config.GetEnv`](config/load_config.go) (checked in [`connections/db_connection.go`](connections/db_connection.go) and [`cmd/migrate`](cmd/migrate/main.go)) — it reads `KEY_FILE` if set, otherwise falls back to a plain `KEY` env var.
 - **Configs** (`app_config` → [configs/app.env](configs/app.env)) — a committed, non-secret settings file (`PORT`, `GIN_MODE`) mounted the same way at `/run/configs/app.env`. Since these aren't sensitive, [docker-entrypoint.sh](docker-entrypoint.sh) just sources the file into the environment before running `migrate`/`rest-api`, which don't have any file-reading convention of their own.
 
-Before first use, create the two secret files under `secrets/` (gitignored, not shipped in the repo):
-
-```bash
-mkdir -p secrets
-echo -n 'rootpass' > secrets/mysql_root_password.txt
-echo -n 'root:rootpass@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local' > secrets/dsn.txt
-```
-
-With those in place (and `.env.docker` created per step 1 above, which the Compose path still uses for `MYSQL_DATABASE` and the host port mapping):
+No manual file setup needed — just run:
 
 ```bash
 make compose-up
 ```
 
-Builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
+The `env-setup` target (a dependency of `compose-up`) generates `.env.docker` (copied from [.env.docker.example](.env.docker.example)) and both `secrets/*.txt` files with working dev defaults, but only if they don't already exist, so it never overwrites credentials you've customized. `compose-up` then builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
+
+If you want different credentials than the defaults (`yourpassword`/`student_db`), edit `.env.docker` and the `secrets/*.txt` files after this first run, then re-run `make compose-up`.
 
 ```bash
 make compose-down
 ```
 
-Stops and removes both containers (the `student-mysql-data` volume persists).
+Stops and removes both containers (the `student-mysql-data` and `student-logs` volumes persist).
 
 | Command | What it does |
 |---|---|
+| `make env-setup` | Generates `.env.docker` and `secrets/*.txt` with dev defaults, only if missing (runs automatically as a `compose-up` dependency) |
 | `make compose-up` | Builds the app image and starts `mysql` + `rest-api` detached |
 | `make compose-down` | Stops and removes both containers |
+
+**Logs.** `rest-api` writes its structured JSON logs to both stdout (`LOG_FILE` in [configs/app.env](configs/app.env) is what turns this on — see [main.go](main.go)) and `/var/log/app/rest-api.log`, which lives on the `student-logs` named volume. Since it's a volume rather than the container's own writable layer, the logs outlive `make compose-down` / `docker compose down` — removing the containers doesn't remove the volume or its contents.
+
+To read those logs after the containers are gone (or without stopping a running one), a named volume isn't a folder on your host you can just open — especially on macOS, where Docker Desktop runs everything inside a VM. Use a disposable container to mount the same volume:
+
+```bash
+docker run --rm -v student-api_student-logs:/logs alpine cat /logs/rest-api.log
+```
+
+(While `rest-api` is still running, `docker compose exec rest-api cat /var/log/app/rest-api.log` or plain `docker compose logs rest-api` both work too.)
 
 ## Database Migrations
 
