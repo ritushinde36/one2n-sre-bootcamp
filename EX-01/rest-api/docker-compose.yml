@@ -42,9 +42,12 @@ services:
         target: /run/configs/app.env
     ports:
       - "${PORT:-8888}:8888"
+    volumes:
+      - student-logs:/var/log/app
     depends_on:
       mysql:
         condition: service_healthy
 
 volumes:
   student-mysql-data:
+  student-logs:
