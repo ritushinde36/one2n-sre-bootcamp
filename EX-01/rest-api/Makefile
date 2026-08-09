@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-down
 
 IMAGE_NAME := student-rest-api
 VERSION := $(shell git describe --tags --always --dirty)
@@ -88,3 +88,14 @@ docker-mysql-up: docker-network
 
 docker-mysql-down:
 	docker rm -f $(MYSQL_CONTAINER)
+
+# builds the app image and starts both containers via Compose - no manual
+# network/mysql/build steps needed, unlike the docker-* targets above.
+# IMAGE_NAME/VERSION are exported so the image gets tagged the same way
+# docker-build tags it (git version), instead of Compose's default :latest.
+compose-up:
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env.docker up -d --build
+
+# stops and removes both containers (the student-mysql-data volume persists).
+compose-down:
+	docker compose --env-file .env.docker down
