@@ -217,6 +217,7 @@ The app can also be built and run as a container, without a local Go toolchain. 
 - [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Runs `migrate up` to apply any pending migrations, then `exec`s into `rest-api`. Since goose tracks applied migrations in the `goose_db_version` table, this is safe to run on every container start — a container with nothing new to apply just logs `no migrations to run` and moves on.
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
+- [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
 
 **1. Create `.env.docker`** in the project root:
 
@@ -278,6 +279,29 @@ docker network rm student-api-net
 | `make docker-mysql-down` | Removes the MySQL container |
 
 Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read error other than "file not found" — so running in a container with no `.env` file present (which `.dockerignore` guarantees) is fine; environment variables passed via `--env-file` are picked up directly.
+
+### Running with Docker Compose
+
+[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run steps above with two services, `mysql` and `rest-api`. Compose creates its own network per project and attaches both services to it automatically, resolving each by service name (or `container_name`) — there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. The `rest-api` service waits for `mysql`'s healthcheck (`mysqladmin ping`) to pass before starting, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet.
+
+With `.env.docker` already created (step 1 above):
+
+```bash
+make compose-up
+```
+
+Builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
+
+```bash
+make compose-down
+```
+
+Stops and removes both containers (the `student-mysql-data` volume persists).
+
+| Command | What it does |
+|---|---|
+| `make compose-up` | Builds the app image and starts `mysql` + `rest-api` detached |
+| `make compose-down` | Stops and removes both containers |
 
 ## Database Migrations
 
