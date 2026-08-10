@@ -60,18 +60,18 @@ migrate-status:
 docker-build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
 
-# Requires .env.docker (DSN pointing at the student-mysql container) and the
-# network/mysql container to already be up - see docker-network/docker-mysql-up.
+# Requires .env.docker (DSN pointing at the student-mysql container, and
+# LOG_FILE for where the app writes its logs on the student-logs volume) and
+# the network/mysql container to already be up - see docker-network/docker-mysql-up.
 docker-run: docker-network
-	docker run -d --name $(APP_CONTAINER) -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
+	docker run -d --name $(APP_CONTAINER) -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker -v student-logs:/var/log/app $(IMAGE_NAME):$(VERSION)
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
-# in-flight requests, saves its logs (removing the container would discard
-# them otherwise), then removes the stopped container.
+# in-flight requests, then removes the stopped container. Logs aren't lost
+# in the process - the app writes them to the student-logs volume (see
+# docker-run), which outlives the container.
 docker-down:
 	docker stop $(APP_CONTAINER)
-	mkdir -p logs
-	docker logs $(APP_CONTAINER) > logs/$(APP_CONTAINER)-$$(date +%Y%m%d-%H%M%S).log 2>&1
 	docker rm $(APP_CONTAINER)
 
 docker-network:
@@ -99,11 +99,11 @@ env-setup:
 	fi
 	@mkdir -p secrets
 	@if [ ! -f secrets/mysql_root_password.txt ]; then \
-		echo -n 'yourpassword' > secrets/mysql_root_password.txt; \
+		printf '%s' 'yourpassword' > secrets/mysql_root_password.txt; \
 		echo "created secrets/mysql_root_password.txt"; \
 	fi
 	@if [ ! -f secrets/dsn.txt ]; then \
-		echo -n 'root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local' > secrets/dsn.txt; \
+		printf '%s' 'root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local' > secrets/dsn.txt; \
 		echo "created secrets/dsn.txt"; \
 	fi
 
