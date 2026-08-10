@@ -1,10 +1,13 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down
 
 IMAGE_NAME := student-rest-api
 VERSION := $(shell git describe --tags --always --dirty)
 NETWORK_NAME := student-api-net
 APP_CONTAINER := student-rest-api
 MYSQL_CONTAINER := student-mysql
+# override on the command line to run extra instances, e.g.:
+#   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
+HOST_PORT := 8888
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env.docker
 # file, so no credential value ever appears in this committed Makefile.
@@ -60,10 +63,22 @@ migrate-status:
 docker-build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
 
+# Runs migrations to completion in a one-off container (--rm), separately
+# from the app container - like a Kubernetes init container, but for plain
+# Docker. This is what lets docker-run start the app without also migrating
+# on every boot, which wouldn't be safe if the app were ever scaled to
+# multiple containers racing to migrate the same database concurrently.
 # Requires .env.docker (DSN pointing at the student-mysql container) and the
-# network/mysql container to already be up - see docker-network/docker-mysql-up.
-docker-run: docker-network
-	docker run -d --name $(APP_CONTAINER) -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
+# network/mysql container to already be up - see docker-mysql-up.
+docker-migrate: docker-network
+	docker run --rm --network $(NETWORK_NAME) --env-file .env.docker --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+
+# Requires .env.docker (DSN pointing at the student-mysql container) and the
+# network/mysql container to already be up - see docker-mysql-up. Runs
+# docker-migrate first, so the app container only ever starts against an
+# already-migrated schema.
+docker-run: docker-migrate
+	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
 # in-flight requests, saves its logs (removing the container would discard

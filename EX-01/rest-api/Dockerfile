@@ -35,7 +35,9 @@ USER app
 
 EXPOSE 8888
 
-# Applies pending migrations, then hands off to the API server. To run migrate
-# standalone (e.g. `status`/`down`), override the entrypoint:
+# Starts the API server - migrations are a separate one-off step run before
+# this container starts (see `make docker-migrate`), not done here on every
+# boot. To run migrate directly (e.g. `up`/`status`/`down`), override the
+# entrypoint:
 #   docker run --rm --entrypoint migrate --network ... --env-file .env.docker <image> status
 ENTRYPOINT ["docker-entrypoint.sh"]

@@ -214,7 +214,7 @@ The app can also be built and run as a container, without a local Go toolchain. 
 **Files involved:**
 
 - [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
-- [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Runs `migrate up` to apply any pending migrations, then `exec`s into `rest-api`. Since goose tracks applied migrations in the `goose_db_version` table, this is safe to run on every container start — a container with nothing new to apply just logs `no migrations to run` and moves on.
+- [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Just `exec`s into `rest-api`; it doesn't migrate. Migrations run as a separate one-off step (`make docker-migrate`) before the app container ever starts — see step 4 below for why.
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
 
@@ -251,7 +251,11 @@ Builds `student-rest-api:<version>`, where `<version>` comes from `git describe 
 make docker-run
 ```
 
-Runs the image detached, named `student-rest-api`, on the `student-api-net` network with `.env.docker` as its environment file, publishing port `8888`. On start, the container's entrypoint applies any pending migrations against the `student-mysql` container before starting the server — no separate migration step needed. The app connects to MySQL using the container-to-container `DSN` from `.env.docker`. Tail its logs with `docker logs -f student-rest-api`.
+`docker-run` depends on `docker-migrate`, which runs the `migrate` binary to completion in its own one-off container (`--rm`, `--entrypoint migrate ... up`) against `student-mysql`, *before* the app container ever starts — like a Kubernetes init container, but implemented as plain Docker + Makefile ordering, since there's no orchestrator here. This matters for scaling: if migrations instead ran inside every app container's entrypoint (as they used to), multiple app containers starting concurrently would race to apply the same migration against the same database at once. With migrations pulled out into their own one-off step, they run exactly once regardless of how many app containers start afterward.
+
+Once `docker-migrate` succeeds, `docker-run` starts the image detached, named `student-rest-api`, on the `student-api-net` network with `.env.docker` as its environment file, publishing port `8888`. The app connects to MySQL using the container-to-container `DSN` from `.env.docker`. Tail its logs with `docker logs -f student-rest-api`.
+
+Note: this only protects you if `docker-run` (or whatever starts the container in your actual deploy path) always goes through `docker-migrate` first — a bare `docker run <image>` that skips it will start the app against whatever schema already exists, with no self-healing migration step like before.
 
 **5. Verify:**
 
@@ -273,7 +277,8 @@ docker network rm student-api-net
 | `make docker-build` | Builds the app image, tagged with the current git version |
 | `make docker-network` | Creates the `student-api-net` Docker network if it doesn't already exist |
 | `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env.docker` |
-| `make docker-run` | Ensures the network exists, then runs the app container detached, using `.env.docker` |
+| `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits (runs automatically as a `docker-run` dependency) |
+| `make docker-run` | Runs `docker-migrate`, then starts the app container detached, using `.env.docker` |
 | `make docker-down` | Gracefully stops the app container, saves its logs to `logs/<container>-<timestamp>.log`, then removes it |
 | `make docker-mysql-down` | Removes the MySQL container |
 
@@ -281,7 +286,7 @@ Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read
 
 ## Database Migrations
 
-Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install — if you're using the [Docker workflow](#running-with-docker), `make docker-run` applies pending migrations automatically on container start.)
+Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install — if you're using the [Docker workflow](#running-with-docker), `make docker-run` applies pending migrations via `make docker-migrate` before starting the app container, not on every container boot.)
 
 - `00001_create_students_table.sql` — creates the `students` table
 - `00002_add_not_null_constraints.sql` — tightens `name`/`email`/`age`/`class`/`department` to `NOT NULL`
