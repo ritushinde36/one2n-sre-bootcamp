@@ -20,14 +20,18 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/migrate ./cmd
 # ---- Runtime stage ----
 FROM alpine:3.20
 
+RUN addgroup -S app && adduser -S -G app app
+
 WORKDIR /app
 
 COPY --from=build /app/bin/rest-api /usr/local/bin/rest-api
 COPY --from=build /app/bin/migrate /usr/local/bin/migrate
 # cmd/migrate reads migration files off disk at runtime (not embedded), relative to the CWD.
-COPY --from=build /app/migrations ./migrations
+COPY --from=build --chown=app:app /app/migrations ./migrations
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+USER app
 
 EXPOSE 8888
 
