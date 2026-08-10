@@ -35,6 +35,13 @@ USER app
 
 EXPOSE 8888
 
+# Liveness only - checks the process itself responds, not the database (see
+# /readyz for that). Keeping DB reachability out of this check matters:
+# HEALTHCHECK failures are what an orchestrator restarts the container over,
+# and restarting rest-api can't fix a downed database.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -q -O /dev/null http://localhost:8888/healthcheck || exit 1
+
 # Starts the API server - migrations are a separate one-off step run before
 # this container starts (see `make docker-migrate`), not done here on every
 # boot. To run migrate directly (e.g. `up`/`status`/`down`), override the
