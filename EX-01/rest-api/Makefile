@@ -1,6 +1,9 @@
 .PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down
 
 IMAGE_NAME := student-rest-api
+# defaults to the current git version, but can be overridden on the command
+# line to build/tag a specific version instead, e.g.:
+#   make docker-build VERSION=1.2.3
 VERSION := $(shell git describe --tags --always --dirty)
 NETWORK_NAME := student-api-net
 APP_CONTAINER := student-rest-api

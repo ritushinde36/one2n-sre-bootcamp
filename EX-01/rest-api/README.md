@@ -243,7 +243,7 @@ Creates the `student-api-net` Docker network (if it doesn't already exist) and s
 make docker-build
 ```
 
-Builds `student-rest-api:<version>`, where `<version>` comes from `git describe --tags --always --dirty`.
+Builds `student-rest-api:<version>`, where `<version>` comes from `git describe --tags --always --dirty` by default. Override it to build a specific version instead: `make docker-build VERSION=1.2.3`.
 
 **4. Run the app container:**
 
