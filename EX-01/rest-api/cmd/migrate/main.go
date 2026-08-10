@@ -20,7 +20,10 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	goose.SetLogger(&slogGooseLogger{})
 
-	config.LoadConfig()
+	if err := config.LoadConfig(); err != nil {
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
+	}
 
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
