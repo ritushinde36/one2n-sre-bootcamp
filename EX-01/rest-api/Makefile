@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down env-setup compose-up compose-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-down
 
 IMAGE_NAME := student-rest-api
 # defaults to the current git version, but can be overridden on the command
@@ -110,20 +110,12 @@ docker-mysql-up: docker-network
 docker-mysql-down:
 	docker rm -f $(MYSQL_CONTAINER)
 
-# generates .env.docker with dev-friendly defaults, but only if it doesn't
-# already exist - so a fresh clone needs zero manual file creation, and any
-# file you've customized is left alone.
-env-setup:
-	@if [ ! -f .env.docker ]; then \
-		cp .env.docker.example .env.docker; \
-		echo "created .env.docker from .env.docker.example"; \
-	fi
-
 # builds the app image and starts both containers via Compose - no manual
 # network/mysql/build steps needed, unlike the docker-* targets above.
-# IMAGE_NAME/VERSION are exported so the image gets tagged the same way
-# docker-build tags it (git version), instead of Compose's default :latest.
-compose-up: env-setup
+# Requires .env.docker to already exist - copy it from .env.docker.example
+# first. IMAGE_NAME/VERSION are exported so the image gets tagged the same
+# way docker-build tags it (git version), instead of Compose's default :latest.
+compose-up:
 	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env.docker up -d --build
 
 # stops and removes both containers (the student-mysql-data volume persists).
