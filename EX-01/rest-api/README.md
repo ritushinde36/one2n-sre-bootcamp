@@ -218,9 +218,7 @@ The app can also be built and run as a container, without a local Go toolchain. 
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
 - [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
-- `secrets/` — gitignored directory of credential files (`mysql_root_password.txt`, `dsn.txt`) mounted into containers by Compose's `secrets:` mechanism. Not shipped in the repo; `make compose-up` generates both with dev defaults on first run if they're missing (see [Running with Docker Compose](#running-with-docker-compose)).
 - [.env.docker.example](.env.docker.example) — committed template for `.env.docker`; `make compose-up` copies it to `.env.docker` on first run if that file doesn't exist yet.
-- [configs/app.env](configs/app.env) — committed, non-secret runtime settings (`PORT`, `GIN_MODE`, `LOG_FILE`) mounted into the `rest-api` container by Compose's `configs:` mechanism.
 
 **1. Create `.env.docker`** in the project root:
 
@@ -288,10 +286,7 @@ Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read
 
 [docker-compose.yml](docker-compose.yml) replaces the manual network/build/run steps above with two services, `mysql` and `rest-api`. Compose creates its own network per project and attaches both services to it automatically, resolving each by service name (or `container_name`) — there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. The `rest-api` service waits for `mysql`'s healthcheck (`mysqladmin ping`) to pass before starting, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet.
 
-Credentials and runtime settings are split by sensitivity, using Compose's `secrets:`/`configs:` mechanisms instead of plain env vars for the Compose path (the manual `docker-run`/`docker-mysql-up` targets above are unaffected and still read `.env.docker` directly):
-
-- **Secrets** (`mysql_root_password`, `dsn`) — gitignored files under [secrets/](secrets/), each holding one credential. They're mounted as files at `/run/secrets/<name>` inside the container rather than injected as env vars, so they don't show up in `docker inspect` or a container's process environment. `mysql` consumes its password via the official image's built-in `MYSQL_ROOT_PASSWORD_FILE` support; `rest-api` consumes its `DSN` via `DSN_FILE`, resolved by [`config.GetEnv`](config/load_config.go) (checked in [`connections/db_connection.go`](connections/db_connection.go) and [`cmd/migrate`](cmd/migrate/main.go)) — it reads `KEY_FILE` if set, otherwise falls back to a plain `KEY` env var.
-- **Configs** (`app_config` → [configs/app.env](configs/app.env)) — a committed, non-secret settings file (`PORT`, `GIN_MODE`) mounted the same way at `/run/configs/app.env`. Since these aren't sensitive, [docker-entrypoint.sh](docker-entrypoint.sh) just sources the file into the environment before running `migrate`/`rest-api`, which don't have any file-reading convention of their own.
+Both services read their configuration straight from `.env.docker` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up` targets use.
 
 No manual file setup needed — just run:
 
@@ -299,9 +294,9 @@ No manual file setup needed — just run:
 make compose-up
 ```
 
-The `env-setup` target (a dependency of `compose-up`) generates `.env.docker` (copied from [.env.docker.example](.env.docker.example)) and both `secrets/*.txt` files with working dev defaults, but only if they don't already exist, so it never overwrites credentials you've customized. `compose-up` then builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
+The `env-setup` target (a dependency of `compose-up`) generates `.env.docker` (copied from [.env.docker.example](.env.docker.example)) with working dev defaults, but only if it doesn't already exist, so it never overwrites credentials you've customized. `compose-up` then builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
 
-If you want different credentials than the defaults (`yourpassword`/`student_db`), edit `.env.docker` and the `secrets/*.txt` files after this first run, then re-run `make compose-up`.
+If you want different credentials than the defaults (`yourpassword`/`student_db`), edit `.env.docker` after this first run, then re-run `make compose-up`.
 
 ```bash
 make compose-down
@@ -311,7 +306,7 @@ Stops and removes both containers. Compose namespaces its volumes by project nam
 
 | Command | What it does |
 |---|---|
-| `make env-setup` | Generates `.env.docker` and `secrets/*.txt` with dev defaults, only if missing (runs automatically as a `compose-up` dependency) |
+| `make env-setup` | Generates `.env.docker` with dev defaults, only if missing (runs automatically as a `compose-up` dependency) |
 | `make compose-up` | Builds the app image and starts `mysql` + `rest-api` detached |
 | `make compose-down` | Stops and removes both containers |
 

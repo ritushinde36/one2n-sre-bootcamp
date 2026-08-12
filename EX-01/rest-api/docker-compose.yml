@@ -1,30 +1,16 @@
 name: student-api
 
-secrets:
-  mysql_root_password:
-    file: ./secrets/mysql_root_password.txt
-  dsn:
-    file: ./secrets/dsn.txt
-
-configs:
-  app_config:
-    file: ./configs/app.env
-
 services:
   mysql:
     image: mysql:8.0
     container_name: student-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-    secrets:
-      - mysql_root_password
+    env_file: .env.docker
     ports:
       - "3306:3306"
     volumes:
       - student-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat /run/secrets/mysql_root_password)\""]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -33,13 +19,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-rest-api
-    environment:
-      DSN_FILE: /run/secrets/dsn
-    secrets:
-      - dsn
-    configs:
-      - source: app_config
-        target: /run/configs/app.env
+    env_file: .env.docker
     ports:
       - "${PORT:-8888}:8888"
     volumes:

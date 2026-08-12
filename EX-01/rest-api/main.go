@@ -19,10 +19,9 @@ import (
 )
 
 func main() {
-	// LOG_FILE (set via configs/app.env for the Compose path) points at a
-	// path on the student-logs volume, so logs survive `docker compose down`
-	// instead of being lost with the removed container. Still logs to stdout
-	// too, so `docker compose logs` keeps working live.
+	// LOG_FILE points at a path on the student-logs volume, so logs survive
+	// `docker compose down` instead of being lost with the removed container.
+	// Still logs to stdout too, so `docker compose logs` keeps working live.
 	logWriter := io.Writer(os.Stdout)
 	if path := os.Getenv("LOG_FILE"); path != "" {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
