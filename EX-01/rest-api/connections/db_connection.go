@@ -6,14 +6,16 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"github.com/ritushinde36/one2n-sre-bootcamp/config"
 )
 
 var DB *gorm.DB
 
 func Connect_to_DB() {
-	dsn := os.Getenv("DSN")
-	if dsn == "" {
-		slog.Error("environment variable DSN is not set")
+	dsn, err := config.RequireEnv("DSN")
+	if err != nil {
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 
