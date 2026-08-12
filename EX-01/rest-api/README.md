@@ -306,29 +306,43 @@ Note: [`config.LoadConfig()`](config/load_config.go) only returns an error on a 
 
 ## Running with Docker Compose
 
-[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run/migrate steps above with two services, `mysql` and `rest-api`. Compose creates its own network per project and attaches both services to it automatically, resolving each by service name (or `container_name`) — there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. Both services read their configuration straight from `.env.docker` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up` targets use. The `rest-api` service waits for `mysql`'s healthcheck (`mysqladmin ping`) to pass before starting, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet.
+[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run/migrate steps above with three services: `mysql`, `migrate`, and `rest-api`. Compose creates its own network per project and attaches all three to it automatically, resolving each by service name (or `container_name`) — there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. All three read their configuration straight from `.env.docker` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up`/`docker-migrate` targets use. `migrate` runs the `migrate up` binary to completion (mirroring the manual `docker-migrate` one-off container) once `mysql`'s healthcheck (`mysqladmin ping`) passes; `rest-api` then waits on both `mysql` being healthy and `migrate` having exited successfully (`condition: service_completed_successfully`) before it starts, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet, or if the schema isn't there yet.
 
-No manual file setup needed — just run:
+**1. Create `.env.docker`** (skip this if you already created it for the manual flow above — Compose reads the same file):
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+Edit it if you want different values than the defaults (`yourpassword`/`student_db`):
+
+```
+MYSQL_ROOT_PASSWORD=yourpassword
+MYSQL_DATABASE=student_db
+DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+PORT=8888
+GIN_MODE=release
+LOG_FILE=/var/log/app/rest-api.log
+```
+
+**2. Build the image, apply migrations, and start the app:**
 
 ```bash
 make compose-up
 ```
 
-The `env-setup` target (a dependency of `compose-up`) generates `.env.docker` (copied from [.env.docker.example](.env.docker.example)) with working dev defaults, but only if it doesn't already exist, so it never overwrites credentials you've customized. `compose-up` then builds the app image and starts both containers detached. Verify the same way as above (`curl http://localhost:8888/healthcheck`).
-
-If you want different credentials than the defaults (`yourpassword`/`student_db`), edit `.env.docker` after this first run, then re-run `make compose-up`.
+Verify the same way as above (`curl http://localhost:8888/healthcheck`).
 
 ```bash
 make compose-down
 ```
 
-Stops and removes both containers. Compose namespaces its volumes by project name, so what persists is `student-api_student-mysql-data` and `student-api_student-logs` (not the plain names) — see [Reading logs from the volume](#reading-logs-from-the-volume).
+Stops and removes all three containers (`migrate` has already exited on its own by this point). Compose namespaces its volumes by project name, so what persists is `student-api_student-mysql-data` and `student-api_student-logs` (not the plain names) — see [Reading logs from the volume](#reading-logs-from-the-volume).
 
 | Command | What it does |
 |---|---|
-| `make env-setup` | Generates `.env.docker` with dev defaults, only if missing (runs automatically as a `compose-up` dependency) |
-| `make compose-up` | Builds the app image and starts `mysql` + `rest-api` detached |
-| `make compose-down` | Stops and removes both containers |
+| `make compose-up` | Builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env.docker` to already exist) |
+| `make compose-down` | Stops and removes all three containers |
 
 ### Reading logs from the volume
 
@@ -345,7 +359,7 @@ docker run --rm -v student-api_student-logs:/logs alpine cat /logs/rest-api.log 
 
 ## Database Migrations
 
-Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install — if you're using the [Docker workflow](#running-with-docker), run `make docker-migrate` once before `make docker-run`; migrations don't run automatically on every container boot, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing.)
+Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install. If you're using the manual [Docker workflow](#running-with-docker), run `make docker-migrate` once before `make docker-run` — migrations don't run automatically on every `docker-run`, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing. If you're using [Docker Compose](#running-with-docker-compose), `make compose-up` runs the equivalent `migrate` service to completion automatically before starting `rest-api`, so there's no separate step to run yourself.)
 
 - `00001_create_students_table.sql` — creates the `students` table
 - `00002_add_not_null_constraints.sql` — tightens `name`/`email`/`age`/`class`/`department` to `NOT NULL`
