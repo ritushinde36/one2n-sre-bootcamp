@@ -1,10 +1,16 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-run docker-down docker-network docker-mysql-up docker-mysql-down env-setup compose-up compose-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down env-setup compose-up compose-down
 
 IMAGE_NAME := student-rest-api
+# defaults to the current git version, but can be overridden on the command
+# line to build/tag a specific version instead, e.g.:
+#   make docker-build VERSION=1.2.3
 VERSION := $(shell git describe --tags --always --dirty)
 NETWORK_NAME := student-api-net
 APP_CONTAINER := student-rest-api
 MYSQL_CONTAINER := student-mysql
+# override on the command line to run extra instances, e.g.:
+#   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
+HOST_PORT := 8888
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env.docker
 # file, so no credential value ever appears in this committed Makefile.
@@ -43,6 +49,11 @@ test-one:
 staticcheck:
 	staticcheck ./...
 
+# lints the Dockerfile - requires hadolint: brew install hadolint (or see
+# https://github.com/hadolint/hadolint#install)
+hadolint:
+	hadolint Dockerfile
+
 # runs the Postman collection against a running server (`make run` first).
 # requires newman: npm install -g newman
 newman:
@@ -64,7 +75,17 @@ docker-build:
 # LOG_FILE for where the app writes its logs on the student-logs volume) and
 # the network/mysql container to already be up - see docker-network/docker-mysql-up.
 docker-run: docker-network
-	docker run -d --name $(APP_CONTAINER) -p 8888:8888 --network $(NETWORK_NAME) --env-file .env.docker -v student-logs:/var/log/app $(IMAGE_NAME):$(VERSION)
+	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env.docker -v student-logs:/var/log/app $(IMAGE_NAME):$(VERSION)
+
+# Runs migrations to completion in a one-off container (--rm), separately
+# from the app container - like a Kubernetes init container, but for plain
+# Docker. Run this yourself, once, before scaling up any number of docker-run
+# instances - it's deliberately NOT a docker-run dependency, so that scaling
+# to N app containers doesn't mean N containers each redundantly trying to
+# migrate.
+docker-migrate: docker-network
+	docker run --rm --network $(NETWORK_NAME) --env-file .env.docker --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
 # in-flight requests, then removes the stopped container. Logs aren't lost
