@@ -31,6 +31,12 @@ COPY --from=build --chown=app:app /app/migrations ./migrations
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Pre-create and own the log directory as `app` before the volume is ever
+# mounted here - Docker seeds a fresh named volume with the mountpoint's
+# existing ownership/content on first use, so this is what lets the
+# non-root `app` user write LOG_FILE once /var/log/app is a volume mount.
+RUN mkdir -p /var/log/app && chown app:app /var/log/app
+
 USER app
 
 EXPOSE 8888
