@@ -222,9 +222,9 @@ The app can also be built and run as a container, without a local Go toolchain. 
 **1. Create `.env.docker`** in the project root:
 
 ```
-MYSQL_ROOT_PASSWORD=rootpass
+MYSQL_ROOT_PASSWORD=your_password
 MYSQL_DATABASE=student_db
-DSN=root:rootpass@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+DSN=root:your_password@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
 ```
 
@@ -291,7 +291,6 @@ docker network rm student-api-net
 | `make docker-down` | Gracefully stops the app container, saves its logs to `logs/<container>-<timestamp>.log`, then removes it |
 | `make docker-mysql-down` | Removes the MySQL container |
 
-Note: [`config.LoadConfig()`](config/load_config.go) only exits on a `.env` read error other than "file not found" — so running in a container with no `.env` file present (which `.dockerignore` guarantees) is fine; environment variables passed via `--env-file` are picked up directly.
 
 ## Database Migrations
 
