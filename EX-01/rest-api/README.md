@@ -49,6 +49,8 @@ A Go-based REST API for doing CRUD operations on student records, built with Gin
 | Logging | Go standard library `log/slog` (JSON handler) |
 | Test assertions | [stretchr/testify](https://github.com/stretchr/testify) |
 | Test infrastructure | [testcontainers-go](https://github.com/testcontainers/testcontainers-go) |
+| Containerization | [Docker](https://www.docker.com/) (multi-stage [Dockerfile](Dockerfile)) |
+| Container orchestration (local) | [Docker Compose](https://docs.docker.com/compose/) ([docker-compose.yml](docker-compose.yml)) |
 
 Go version: see [go.mod](go.mod) (currently 1.26.5).
 
@@ -105,6 +107,9 @@ rest-api/
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables
 ├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
+├── docker-entrypoint.sh            # Image entrypoint: execs into rest-api (migrations run separately, see docker-migrate)
+├── docker-compose.yml              # Compose setup: mysql + rest-api services (see Running with Docker Compose)
+├── .env.docker.example             # Template for .env.docker, used by docker-run/docker-mysql-up/compose-up
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
 ├── config/
