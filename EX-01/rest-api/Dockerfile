@@ -14,8 +14,8 @@ COPY . .
 # CGO_ENABLED=0 produces a fully static binary with no C runtime dependency,
 # which is what lets the runtime stage below use a minimal base image.
 # -ldflags="-s -w" strips debug symbols to shrink the binary itself.
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/rest-api .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/migrate ./cmd/migrate
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/rest-api . && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/migrate ./cmd/migrate
 
 # ---- Runtime stage ----
 FROM alpine:3.20

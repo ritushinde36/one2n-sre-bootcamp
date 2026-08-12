@@ -200,6 +200,7 @@ The [Makefile](Makefile) defines the standard entry points:
 | `make test-list` | Lists every runnable test's name — no Docker required |
 | `make test-one TEST=<name>` | Runs a single test by name — **requires Docker running** |
 | `make staticcheck` | Runs static analysis (`staticcheck ./...`) — **requires `staticcheck` installed** |
+| `make hadolint` | Lints the Dockerfile (`hadolint Dockerfile`) — **requires `hadolint` installed** |
 | `make newman` | Runs the Postman collection against a running server — **requires `newman` installed and the server running** |
 | `make migrate-up` | Applies all pending goose migrations |
 | `make migrate-down` | Rolls back the most recently applied migration |
@@ -505,6 +506,20 @@ make staticcheck
 # or directly
 staticcheck ./...
 ```
+
+**Dockerfile linting.** [hadolint](https://github.com/hadolint/hadolint) catches Dockerfile issues like missed layer-consolidation opportunities, unpinned base images, and other common anti-patterns.
+
+**Install it once:** `brew install hadolint` (or see [hadolint's install docs](https://github.com/hadolint/hadolint#install) for other platforms).
+
+**Run it:**
+
+```bash
+make hadolint
+# or directly
+hadolint Dockerfile
+```
+
+Note: neither `staticcheck` nor `hadolint` run automatically anywhere (no CI is configured for this repo) — both are opt-in, run-it-yourself checks.
 
 
 ## Logging

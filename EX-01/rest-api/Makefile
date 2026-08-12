@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down
 
 IMAGE_NAME := student-rest-api
 # defaults to the current git version, but can be overridden on the command
@@ -48,6 +48,11 @@ test-one:
 # requires staticcheck: go install honnef.co/go/tools/cmd/staticcheck@latest
 staticcheck:
 	staticcheck ./...
+
+# lints the Dockerfile - requires hadolint: brew install hadolint (or see
+# https://github.com/hadolint/hadolint#install)
+hadolint:
+	hadolint Dockerfile
 
 # runs the Postman collection against a running server (`make run` first).
 # requires newman: npm install -g newman
