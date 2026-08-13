@@ -102,9 +102,8 @@ rest-api/
 ├── main.go                        # Application entry point: config, DB connect, routes, graceful shutdown
 ├── Makefile                       # build / run / test / migrate-* targets
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
-├── .env.example                   # Documents all supported environment variables
+├── .env.example                   # Documents all supported environment variables - used both locally and for Docker
 ├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
-├── .env.docker.example            # Template for .env.docker, used by the Docker workflow
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
 ├── config/
@@ -171,6 +170,8 @@ rest-api/
    cp .env.example .env
    ```
 
+   For running the app directly (this section), `DSN`'s host must be `127.0.0.1` — e.g. `root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local`. This same `.env` file is reused if you later switch to [Running with Docker](#running-with-docker), which requires changing that host to `student-mysql` instead — see that section for why.
+
    See [Environment Variables](#environment-variables) for what each key means. `.env` is loaded automatically on startup by [`config.LoadConfig()`](config/load_config.go); it's gitignored, so your local credentials never get committed.
 
 4. **Run database migrations** to create the schema (see [Database Migrations](#database-migrations) for details):
@@ -217,17 +218,10 @@ The app can also be built and run as a container, without a local Go toolchain. 
 
 - [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
 - [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Just `exec`s into `rest-api`; it doesn't migrate. Migrations run as a separate one-off step (`make docker-migrate`) before the app container ever starts — see step 4 below for why.
-- [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
-- [.env.docker.example](.env.docker.example) — committed template for `.env.docker`.
-- `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
+- [.dockerignore](.dockerignore) — keeps `.env`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
+- `.env` — the same file from [Setup](#setup) step 3, reused here. It's also consumed by the Docker Makefile targets below via `--env-file`.
 
-**1. Create `.env.docker`** in the project root:
-
-```bash
-cp .env.docker.example .env.docker
-```
-
-Edit it to set your own values if you don't want the defaults:
+**1. Update `.env`** (create it via [Setup](#setup) step 3 first, if you haven't already) so `DSN` points at the `student-mysql` container instead of `127.0.0.1`, and add the two MySQL-bootstrap variables:
 
 ```
 MYSQL_ROOT_PASSWORD=your_password
@@ -237,7 +231,7 @@ PORT=8888
 GIN_MODE=release
 ```
 
-`student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine.
+`student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine. If you switch back to running the app directly later, remember to change `DSN`'s host back to `127.0.0.1`.
 
 **2. Start a MySQL container:**
 
@@ -269,7 +263,7 @@ Runs the `migrate` binary to completion in its own one-off container (`--rm`, `-
 make docker-run
 ```
 
-Starts the image detached, named `student-rest-api`, on the `student-api-net` network with `.env.docker` as its environment file, publishing port `8888`. The app connects to MySQL using the container-to-container `DSN` from `.env.docker`. Tail its logs with `docker logs -f student-rest-api`.
+Starts the image detached, named `student-rest-api`, on the `student-api-net` network with `.env` as its environment file, publishing port `8888`. The app connects to MySQL using the container-to-container `DSN` from `.env`. Tail its logs with `docker logs -f student-rest-api`.
 
 `docker-run` deliberately does **not** depend on `docker-migrate` — run `docker-migrate` yourself first. This matters for scaling: migrations used to run inside every app container's own entrypoint, so multiple app containers starting concurrently would race to apply the same migration against the same database. Pulling migrations into their own one-off step, run once, avoids N containers each redundantly (if now safely — `cmd/migrate` holds a MySQL lock) trying to migrate on their own.
 
@@ -294,9 +288,9 @@ docker network rm student-api-net
 |---|---|
 | `make docker-build` | Builds the app image, tagged with the current git version |
 | `make docker-network` | Creates the `student-api-net` Docker network if it doesn't already exist |
-| `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env.docker` |
+| `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env` |
 | `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits — run this yourself before `docker-run`, it's not automatic |
-| `make docker-run` | Starts the app container detached, using `.env.docker` (assumes migrations are already applied) |
+| `make docker-run` | Starts the app container detached, using `.env` (assumes migrations are already applied) |
 | `make docker-down` | Gracefully stops the app container, saves its logs to `logs/<container>-<timestamp>.log`, then removes it |
 | `make docker-mysql-down` | Removes the MySQL container |
 
@@ -564,16 +558,19 @@ Documented in [.env.example](.env.example):
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DSN` | Yes | — | MySQL connection string, e.g. `root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local`. The app exits immediately if this is unset or the connection fails. |
+| `DSN` | Yes | — | MySQL connection string, e.g. `root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local`. The app exits immediately if this is unset or the connection fails. The host differs by mode - `127.0.0.1` when running the app directly, `student-mysql` when running via Docker - see [Running with Docker](#running-with-docker). |
 | `PORT` | No | `8888` | Port the HTTP server listens on. |
 | `GIN_MODE` | No | `debug` (Gin's own default) | Gin's runtime mode (`debug`/`release`/`test`). Set to `release` for production - see [main.go](main.go). |
+| `MYSQL_ROOT_PASSWORD` | Only for Docker | — | Consumed by the `mysql` container itself (via `docker-mysql-up`), not by the app. Ignored when running the app directly. |
+| `MYSQL_DATABASE` | Only for Docker | — | Same as above - the database the `mysql` container creates on first boot. |
 
-NOTE - `.env` is loaded automatically at startup and is gitignored.
+NOTE - `.env` is loaded automatically at startup and is gitignored. The same file is reused for both running the app directly and running it via Docker - see [Running with Docker](#running-with-docker) for what changes between the two.
 
 ## Troubleshooting
 
 - **App exits immediately with "environment variable DSN is not set"** — you haven't created `.env`. Run `cp .env.example .env` and fill in a real DSN.
 - **App exits with "failed to connect to database"** — MySQL isn't running, the DSN host/port/credentials are wrong, or the database named in the DSN doesn't exist yet (see [Setup](#setup) step 1).
+- **Docker container fails to connect to MySQL, or connects to the wrong database** — `.env`'s `DSN` still has last mode's host. It needs `student-mysql` when running via Docker and `127.0.0.1` when running the app directly - see [Running with Docker](#running-with-docker) step 1.
 - **`make test` hangs or fails to start** — Docker isn't running. The integration suite needs Docker to launch its MySQL Testcontainer.
 - **`/readyz` returns 503** — the app is up but can't reach the database; check MySQL is running and reachable from wherever the app is deployed.
 - **Migration `up` fails with "refusing to proceed: pre-existing students table does not match migration 00001"** — a `students` table already exists with a schema that doesn't match what migration `00001` expects. Compare the printed `existing` vs `expected` DDL and reconcile manually; `cmd/migrate` will not auto-alter a mismatched table for you.

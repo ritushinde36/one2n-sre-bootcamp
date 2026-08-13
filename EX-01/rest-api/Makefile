@@ -12,9 +12,9 @@ MYSQL_CONTAINER := student-mysql
 #   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
 HOST_PORT := 8888
 
-# Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env.docker
-# file, so no credential value ever appears in this committed Makefile.
--include .env.docker
+# Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
+# so no credential value ever appears in this committed Makefile.
+-include .env
 
 deps:
 	go mod tidy
@@ -78,16 +78,17 @@ docker-build:
 # to N app containers doesn't mean N containers each redundantly trying to
 # migrate (cmd/migrate does hold a MySQL lock now, so concurrent attempts are
 # safe rather than corrupting state, but they'd still serialize pointlessly).
-# Requires .env.docker (DSN pointing at the student-mysql container) and the
-# network/mysql container to already be up - see docker-mysql-up.
+# Requires .env (DSN pointing at the student-mysql container - see the
+# Running with Docker section in the README) and the network/mysql container
+# to already be up - see docker-mysql-up.
 docker-migrate: docker-network
-	docker run --rm --network $(NETWORK_NAME) --env-file .env.docker --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
 
-# Requires .env.docker (DSN pointing at the student-mysql container), the
+# Requires .env (DSN pointing at the student-mysql container), the
 # network/mysql container to already be up (see docker-mysql-up), and
 # migrations already applied (see docker-migrate) - run that first.
 docker-run: docker-network
-	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env.docker $(IMAGE_NAME):$(VERSION)
+	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env $(IMAGE_NAME):$(VERSION)
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
 # in-flight requests, saves its logs (removing the container would discard

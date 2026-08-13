@@ -46,5 +46,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
 # this container starts (see `make docker-migrate`), not done here on every
 # boot. To run migrate directly (e.g. `up`/`status`/`down`), override the
 # entrypoint:
-#   docker run --rm --entrypoint migrate --network ... --env-file .env.docker <image> status
+#   docker run --rm --entrypoint migrate --network ... --env-file .env <image> status
 ENTRYPOINT ["docker-entrypoint.sh"]
