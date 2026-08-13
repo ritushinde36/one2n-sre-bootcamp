@@ -104,6 +104,7 @@ rest-api/
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables
 ├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
+├── .env.docker.example            # Template for .env.docker, used by the Docker workflow
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
 ├── config/
@@ -217,15 +218,23 @@ The app can also be built and run as a container, without a local Go toolchain. 
 - [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
 - [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Just `exec`s into `rest-api`; it doesn't migrate. Migrations run as a separate one-off step (`make docker-migrate`) before the app container ever starts — see step 4 below for why.
 - [.dockerignore](.dockerignore) — keeps `.env`, `.env.docker`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
+- [.env.docker.example](.env.docker.example) — committed template for `.env.docker`.
 - `.env.docker` — gitignored env file consumed by the Docker Makefile targets below. It isn't shipped in the repo; create it yourself (step 1).
 
 **1. Create `.env.docker`** in the project root:
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+Edit it to set your own values if you don't want the defaults:
 
 ```
 MYSQL_ROOT_PASSWORD=your_password
 MYSQL_DATABASE=student_db
 DSN=root:your_password@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
+GIN_MODE=release
 ```
 
 `student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine.
@@ -557,6 +566,7 @@ Documented in [.env.example](.env.example):
 |---|---|---|---|
 | `DSN` | Yes | — | MySQL connection string, e.g. `root:yourpassword@tcp(127.0.0.1:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local`. The app exits immediately if this is unset or the connection fails. |
 | `PORT` | No | `8888` | Port the HTTP server listens on. |
+| `GIN_MODE` | No | `debug` (Gin's own default) | Gin's runtime mode (`debug`/`release`/`test`). Set to `release` for production - see [main.go](main.go). |
 
 NOTE - `.env` is loaded automatically at startup and is gitignored.
 
