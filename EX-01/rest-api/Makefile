@@ -1,4 +1,20 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck newman migrate-up migrate-down migrate-status
+.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down
+
+IMAGE_NAME := student-rest-api
+# defaults to the current git version, but can be overridden on the command
+# line to build/tag a specific version instead, e.g.:
+#   make docker-build VERSION=1.2.3
+VERSION := $(shell git describe --tags --always --dirty)
+NETWORK_NAME := student-api-net
+APP_CONTAINER := student-rest-api
+MYSQL_CONTAINER := student-mysql
+# override on the command line to run extra instances, e.g.:
+#   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
+HOST_PORT := 8888
+
+# Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
+# so no credential value ever appears in this committed Makefile.
+-include .env
 
 deps:
 	go mod tidy
@@ -33,6 +49,11 @@ test-one:
 staticcheck:
 	staticcheck ./...
 
+# lints the Dockerfile - requires hadolint: brew install hadolint (or see
+# https://github.com/hadolint/hadolint#install)
+hadolint:
+	hadolint Dockerfile
+
 # runs the Postman collection against a running server (`make run` first).
 # requires newman: npm install -g newman
 newman:
@@ -46,3 +67,49 @@ migrate-down:
 
 migrate-status:
 	go run ./cmd/migrate status
+
+docker-build:
+	docker build -t $(IMAGE_NAME):$(VERSION) .
+
+# Runs migrations to completion in a one-off container (--rm), separately
+# from the app container - like a Kubernetes init container, but for plain
+# Docker. Run this yourself, once, before scaling up any number of docker-run
+# instances - it's deliberately NOT a docker-run dependency, so that scaling
+# to N app containers doesn't mean N containers each redundantly trying to
+# migrate (cmd/migrate does hold a MySQL lock now, so concurrent attempts are
+# safe rather than corrupting state, but they'd still serialize pointlessly).
+# Requires .env (DSN pointing at the student-mysql container - see the
+# Running with Docker section in the README) and the network/mysql container
+# to already be up - see docker-mysql-up.
+docker-migrate: docker-network
+	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+
+# Requires .env (DSN pointing at the student-mysql container), the
+# network/mysql container to already be up (see docker-mysql-up), and
+# migrations already applied (see docker-migrate) - run that first.
+docker-run: docker-network
+	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env $(IMAGE_NAME):$(VERSION)
+
+# sends SIGTERM so the app's own graceful shutdown gets a chance to drain
+# in-flight requests, saves its logs (removing the container would discard
+# them otherwise), then removes the stopped container.
+docker-down:
+	docker stop $(APP_CONTAINER)
+	mkdir -p logs
+	docker logs $(APP_CONTAINER) > logs/$(APP_CONTAINER)-$$(date +%Y%m%d-%H%M%S).log 2>&1
+	docker rm $(APP_CONTAINER)
+
+docker-network:
+	docker network inspect $(NETWORK_NAME) >/dev/null 2>&1 || docker network create $(NETWORK_NAME)
+
+docker-mysql-up: docker-network
+	docker run -d --name $(MYSQL_CONTAINER) \
+		--network $(NETWORK_NAME) \
+		-v student-mysql-data:/var/lib/mysql \
+		-p 3306:3306 \
+		-e MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) \
+		-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
+		mysql:8.0
+
+docker-mysql-down:
+	docker rm -f $(MYSQL_CONTAINER)

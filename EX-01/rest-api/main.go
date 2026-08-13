@@ -26,7 +26,10 @@ func main() {
 	binding.EnableDecoderDisallowUnknownFields = true
 
 	//loading the env veriables
-	config.LoadConfig()
+	if err := config.LoadConfig(); err != nil {
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
+	}
 
 	// Gin's own package init() reads GIN_MODE from the OS environment before
 	// main() ever runs, so it can't see a value that only gets set once
@@ -37,7 +40,10 @@ func main() {
 	}
 
 	// connect to the mysql
-	connections.Connect_to_DB()
+	if err := connections.Connect_to_DB(); err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
 
 	//setting up the router
 	router := gin.New()

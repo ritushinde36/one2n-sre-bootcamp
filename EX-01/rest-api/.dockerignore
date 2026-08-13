@@ -1,0 +1,7 @@
+.env
+bin/
+controllers_test/
+postman/
+*.md
+.git
+.gitignore
