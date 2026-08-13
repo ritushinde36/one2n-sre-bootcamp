@@ -1,8 +1,8 @@
 package connections
 
 import (
+	"fmt"
 	"log/slog"
-	"os"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -12,11 +12,10 @@ import (
 
 var DB *gorm.DB
 
-func Connect_to_DB() {
+func Connect_to_DB() error {
 	dsn, err := config.RequireEnv("DSN")
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
@@ -24,10 +23,10 @@ func Connect_to_DB() {
 		Logger:         NewSlogGormLogger(),
 	})
 	if err != nil {
-		slog.Error("failed to connect to database", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	slog.Info("connected to database")
 	DB = db
+	return nil
 }
