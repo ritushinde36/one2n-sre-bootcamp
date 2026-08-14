@@ -12,9 +12,9 @@ MYSQL_CONTAINER := student-mysql
 #   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
 HOST_PORT := 8888
 
-# Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env.docker
-# file, so no credential value ever appears in this committed Makefile.
--include .env.docker
+# Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
+# so no credential value ever appears in this committed Makefile.
+-include .env
 
 deps:
 	go mod tidy
@@ -71,11 +71,11 @@ migrate-status:
 docker-build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
 
-# Requires .env.docker (DSN pointing at the student-mysql container, and
+# Requires .env (DSN pointing at the student-mysql container, and
 # LOG_FILE for where the app writes its logs on the student-logs volume) and
 # the network/mysql container to already be up - see docker-network/docker-mysql-up.
 docker-run: docker-network
-	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env.docker -v student-logs:/var/log/app $(IMAGE_NAME):$(VERSION)
+	docker run -d --name $(APP_CONTAINER) -p $(HOST_PORT):8888 --network $(NETWORK_NAME) --env-file .env -v student-logs:/var/log/app $(IMAGE_NAME):$(VERSION)
 
 # Runs migrations to completion in a one-off container (--rm), separately
 # from the app container - like a Kubernetes init container, but for plain
@@ -84,7 +84,7 @@ docker-run: docker-network
 # to N app containers doesn't mean N containers each redundantly trying to
 # migrate.
 docker-migrate: docker-network
-	docker run --rm --network $(NETWORK_NAME) --env-file .env.docker --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
 
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
@@ -112,12 +112,12 @@ docker-mysql-down:
 
 # builds the app image and starts both containers via Compose - no manual
 # network/mysql/build steps needed, unlike the docker-* targets above.
-# Requires .env.docker to already exist - copy it from .env.docker.example
-# first. IMAGE_NAME/VERSION are exported so the image gets tagged the same
-# way docker-build tags it (git version), instead of Compose's default :latest.
+# Requires .env to already exist - copy it from .env.example first.
+# IMAGE_NAME/VERSION are exported so the image gets tagged the same way
+# docker-build tags it (git version), instead of Compose's default :latest.
 compose-up:
-	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env.docker up -d --build
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build
 
 # stops and removes both containers (the student-mysql-data volume persists).
 compose-down:
-	docker compose --env-file .env.docker down
+	docker compose --env-file .env down

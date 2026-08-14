@@ -4,7 +4,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: student-mysql
-    env_file: .env.docker
+    env_file: .env
     ports:
       - "3306:3306"
     volumes:
@@ -19,7 +19,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-migrate
-    env_file: .env.docker
+    env_file: .env
     entrypoint: migrate
     command: ["up"]
     depends_on:
@@ -30,7 +30,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-rest-api
-    env_file: .env.docker
+    env_file: .env
     ports:
       - "${PORT:-8888}:8888"
     volumes:

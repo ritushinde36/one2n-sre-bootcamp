@@ -32,9 +32,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	dsn := config.GetEnv("DSN")
-	if dsn == "" {
-		slog.Error("environment variable DSN is not set")
+	dsn, err := config.RequireEnv("DSN")
+	if err != nil {
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 

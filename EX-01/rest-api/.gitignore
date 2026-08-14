@@ -1,5 +1,4 @@
 .env
-.env.docker
 bin/
 coverage.out
 logs/

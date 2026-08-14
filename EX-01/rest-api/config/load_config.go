@@ -28,3 +28,13 @@ func LoadConfig() error {
 	slog.Info("config loaded")
 	return nil
 }
+
+// RequireEnv reads key from the environment and errors if it's unset or
+// empty, so callers don't each have to duplicate that check themselves.
+func RequireEnv(key string) (string, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return "", fmt.Errorf("environment variable %s is not set", key)
+	}
+	return val, nil
+}

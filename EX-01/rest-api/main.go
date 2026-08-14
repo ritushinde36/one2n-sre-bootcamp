@@ -53,7 +53,10 @@ func main() {
 	}
 
 	// connect to the mysql
-	connections.Connect_to_DB()
+	if err := connections.Connect_to_DB(); err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
 
 	//setting up the router
 	router := gin.New()
