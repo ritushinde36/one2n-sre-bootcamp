@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-down
+.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down
 
 IMAGE_NAME := student-rest-api
 # defaults to the current git version, but can be overridden on the command
@@ -11,6 +11,9 @@ MYSQL_CONTAINER := student-mysql
 # override on the command line to run extra instances, e.g.:
 #   make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882
 HOST_PORT := 8888
+# override on the command line to run down/status instead of up, e.g.:
+#   make docker-migrate MIGRATE_CMD=status
+MIGRATE_CMD := up
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
 # so no credential value ever appears in this committed Makefile.
@@ -87,7 +90,7 @@ docker-run: docker-network
 # migrate. --rm removes the container on exit, but not the
 # student-migrate-logs volume, so MIGRATE_LOG_FILE's output survives.
 docker-migrate: docker-network
-	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate -v student-migrate-logs:/var/log/app $(IMAGE_NAME):$(VERSION) up
+	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate -v student-migrate-logs:/var/log/app $(IMAGE_NAME):$(VERSION) $(MIGRATE_CMD)
 
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain
@@ -127,6 +130,14 @@ compose-up:
 	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build
 	@echo "==> migration status (from the migrate service's own logs):"
 	@docker compose logs migrate --no-color | tail -n 3
+
+# runs a one-off migrate command via Compose (default: up), e.g.:
+#   make compose-migrate MIGRATE_CMD=status
+# `run` overrides the migrate service's own `command: ["up"]` for just this
+# invocation, in its own container - separate from the one `compose-up`
+# manages, so this is safe to run any time without disturbing that one.
+compose-migrate:
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env run --rm migrate $(MIGRATE_CMD)
 
 # stops and removes both containers (the student-mysql-data volume persists).
 compose-down:

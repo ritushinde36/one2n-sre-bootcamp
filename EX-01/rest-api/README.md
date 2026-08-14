@@ -153,7 +153,7 @@ rest-api/
 
 - [Go](https://go.dev/dl/) (version matching [go.mod](go.mod), currently 1.26.5+)
 - A running MySQL server reachable from your machine (local install, or any MySQL 8-compatible instance).
-- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker).
+- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker) or [Running with Docker Compose](#running-with-docker-compose).
 - Optional: `staticcheck`, `newman` — only needed for `make staticcheck`/`newman` respectively. Install both (skipping any already present) with [scripts/install-tools.sh](scripts/install-tools.sh), or see it for manual install commands per tool.
 - Optional: `hadolint` — only needed for `make hadolint`. `brew install hadolint` (or see [hadolint#install](https://github.com/hadolint/hadolint#install)).
 
@@ -207,7 +207,7 @@ The [Makefile](Makefile) defines the standard entry points:
 | `make deps` | Installs/tidies Go module dependencies (`go mod tidy`) |
 | `make build` | Compiles the binary to `bin/rest-api` |
 | `make run` | Builds, then runs `./bin/rest-api` |
-| `make test` | Runs the full test suite (`go test ./...`) — **requires Docker running** |
+| `make test` | Runs the full test suite in verbose mode (`go test ./... -v`) — **requires Docker running** |
 | `make test-coverage` | Runs the full suite with coverage and opens an HTML report — **requires Docker running** |
 | `make test-list` | Lists every runnable test's name — no Docker required |
 | `make test-one TEST=<name>` | Runs a single test by name — **requires Docker running** |
@@ -312,7 +312,7 @@ Note: [`config.LoadConfig()`](config/load_config.go) only returns an error on a 
 
 ## Running with Docker Compose
 
-[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run/migrate steps above with three services: `mysql`, `migrate`, and `rest-api`. It explicitly defines a `net` network — namespaced by project like the volumes below, so it comes up as `student-api_net` — and attaches all three services to it, resolving each other by service name (or `container_name`); there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. All three read their configuration straight from `.env` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up`/`docker-migrate` targets use. `migrate` runs the `migrate up` binary to completion (mirroring the manual `docker-migrate` one-off container) once `mysql`'s healthcheck (`mysqladmin ping`) passes; `rest-api` then waits on both `mysql` being healthy and `migrate` having exited successfully (`condition: service_completed_successfully`) before it starts, since [`Connect_to_DB`](connections/db_connection.go) has no retry/backoff of its own and would otherwise exit if MySQL isn't accepting connections yet, or if the schema isn't there yet.
+[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run/migrate steps above with three services: `mysql`, `migrate`, and `rest-api`. It explicitly defines a `net` network — namespaced by project like the volumes below, so it comes up as `student-api_net` — and attaches all three services to it, resolving each other by service name (or `container_name`); there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. All three read their configuration straight from `.env` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up`/`docker-migrate` targets use. `migrate` runs the `migrate up` binary to completion (mirroring the manual `docker-migrate` one-off container) once `mysql`'s healthcheck (`mysqladmin ping`) passes; `rest-api` then waits on both `mysql` being healthy and `migrate` having exited successfully (`condition: service_completed_successfully`) before it starts.
 
 **1. Make sure `.env` exists** (create it via [Setup](#setup) step 3 if you haven't already — Compose reads the same file as the manual Docker flow above), with `DSN`'s host set to `student-mysql`:
 
@@ -345,6 +345,7 @@ Stops and removes all three containers (`migrate` has already exited on its own 
 | Command | What it does |
 |---|---|
 | `make compose-up` | Reports whether `mysql` is already running, builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env` to already exist) — reports `migrate`'s applied/pending status from its logs afterward |
+| `make compose-migrate` | Runs a one-off migrate command (`MIGRATE_CMD`, default `up`) via `docker compose run --rm`, in its own container separate from the one `compose-up` manages |
 | `make compose-down` | Stops and removes all three containers |
 
 ### Reading logs from the volume
@@ -366,17 +367,35 @@ docker run --rm -v student-api_student-migrate-logs:/logs alpine cat /logs/migra
 
 ## Database Migrations
 
-Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install. If you're using the manual [Docker workflow](#running-with-docker), run `make docker-migrate` once before `make docker-run` — migrations don't run automatically on every `docker-run`, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing. If you're using [Docker Compose](#running-with-docker-compose), `make compose-up` runs the equivalent `migrate` service to completion automatically before starting `rest-api`, so there's no separate step to run yourself.)
+Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files.
 
 - `00001_create_students_table.sql` — creates the `students` table
 - `00002_add_not_null_constraints.sql` — tightens `name`/`email`/`age`/`class`/`department` to `NOT NULL`
 
-Run them via the Makefile targets above, or directly:
+**Running locally**, against a local MySQL install — via the Makefile targets above, or directly:
 
 ```bash
 go run ./cmd/migrate up       # apply all pending migrations
 go run ./cmd/migrate down     # roll back the last migration
 go run ./cmd/migrate status   # show applied/pending migrations
+```
+
+**Running via the manual [Docker workflow](#running-with-docker):**
+
+```bash
+make docker-migrate                     # apply all pending migrations
+make docker-migrate MIGRATE_CMD=down    # roll back the last migration
+make docker-migrate MIGRATE_CMD=status  # show applied/pending migrations
+```
+
+Run `up` once before `make docker-run` — migrations don't run automatically on every `docker-run`, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing.
+
+**Running via [Docker Compose](#running-with-docker-compose):** `make compose-up` already runs `up` automatically before starting `rest-api`, so there's nothing separate to run for that. For `down`/`status`, or to rerun `up` on demand, use `compose-migrate`, which runs the command in its own one-off container via `docker compose run --rm` — separate from (and safe to run alongside) the container `compose-up` manages:
+
+```bash
+make compose-migrate                     # apply all pending migrations
+make compose-migrate MIGRATE_CMD=down    # roll back the last migration
+make compose-migrate MIGRATE_CMD=status  # show applied/pending migrations
 ```
 
 **Adopting a pre-existing schema:** if a `students` table already exists (e.g. it was created manually, or by an app version that predates goose) and goose has no migration history yet, `cmd/migrate` ([cmd/migrate/main.go](cmd/migrate/main.go)) compares the existing table's `SHOW CREATE TABLE` output against migration `00001`. If they match, it marks `00001` as already applied instead of trying to recreate the table. If they don't match, it refuses to proceed and prints both schemas so you can reconcile them manually which acts as a safety check.
@@ -515,7 +534,7 @@ A ready-to-import collection lives at [postman/student-api.postman_collection.js
 2. The collection uses a `base_url` variable (defaults to `http://localhost:8888`).
 3. Requests are designed to run **top-to-bottom**: "Create Student" captures the new student's ID into a `student_id` collection variable, which later requests (Get/Update/Delete by ID) reuse. Running requests out of order or in isolation may cause the ID-dependent ones to fail.
 
-**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `npm install -g newman`, then:
+**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `./scripts/install-tools.sh` (or directly: `npm install -g newman`), then:
 
 ```bash
 make newman
@@ -530,7 +549,7 @@ Make sure the server is running (`make run`) before running the collection, whet
 ```bash
 make test
 # or
-go test ./...
+go test ./... -v
 ```
 
 **Docker must be running**. `TestMain` in [controllers_test/main_test.go](controllers_test/main_test.go) starts a single real MySQL 8 container (via Testcontainers) shared across every test in the package, and tears the container down after the suite finishes.
@@ -575,6 +594,8 @@ go test ./controllers_test/... -run TestStudentLifecycle_PersistsAcrossRealDB -v
 **Install it once:**
 
 ```bash
+./scripts/install-tools.sh
+# or directly
 go install honnef.co/go/tools/cmd/staticcheck@latest
 ```
 
