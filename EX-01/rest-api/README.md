@@ -103,11 +103,11 @@ The `Student` struct ([models/studentModel.go](models/studentModel.go)) is both 
 ```
 rest-api/
 ├── main.go                        # Application entry point: config, DB connect, routes, graceful shutdown
-├── Makefile                       # build / run / test / migrate-* targets
+├── Makefile                       # build / run / test / migrate-* / docker-* / compose-* targets
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables - used both locally and for Docker
 ├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
-├── docker-entrypoint.sh            # Image entrypoint: execs into rest-api (migrations run separately, see docker-migrate)
+├── docker-entrypoint.sh            # Image entrypoint: execs into rest-api (migrations run separately, see Running with Docker)
 ├── docker-compose.yml              # Compose setup: mysql + migrate + rest-api services (see Running with Docker Compose)
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
@@ -223,7 +223,7 @@ The app can also be built and run as a container, without a local Go toolchain. 
 
 - [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
 - [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Just `exec`s into `rest-api`; it doesn't migrate. Migrations run as a separate one-off step (`make docker-migrate`) before the app container ever starts — see step 4 below for why.
-- [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
+- [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL + migrate setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
 - [.dockerignore](.dockerignore) — keeps `.env`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env` — the same file from [Setup](#setup) step 3, reused here. It's also consumed by the Docker Makefile targets below via `--env-file`.
 
