@@ -117,7 +117,14 @@ docker-mysql-down:
 # IMAGE_NAME/VERSION are exported so the image gets tagged the same way
 # docker-build tags it (git version), instead of Compose's default :latest.
 compose-up:
+	@if [ -n "$$(docker compose ps -q --status running mysql 2>/dev/null)" ]; then \
+		echo "==> mysql is already running"; \
+	else \
+		echo "==> mysql is not running yet - compose will start it"; \
+	fi
 	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build
+	@echo "==> migration status (from the migrate service's own logs):"
+	@docker compose logs migrate --no-color | tail -n 3
 
 # stops and removes both containers (the student-mysql-data volume persists).
 compose-down:

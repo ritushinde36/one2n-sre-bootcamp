@@ -327,6 +327,8 @@ MIGRATE_LOG_FILE=/var/log/app/migrate.log
 make compose-up
 ```
 
+Before starting anything, it prints whether `mysql` is already running (informational only — it doesn't skip or change what Compose does next, since `up`/goose are already safe to rerun). After `up` finishes, it also tails `migrate`'s own logs so you can see right away whether it applied anything or found nothing pending, instead of having to check separately.
+
 Verify the same way as above (`curl http://localhost:8888/healthcheck`).
 
 ```bash
@@ -337,7 +339,7 @@ Stops and removes all three containers (`migrate` has already exited on its own 
 
 | Command | What it does |
 |---|---|
-| `make compose-up` | Builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env` to already exist) |
+| `make compose-up` | Reports whether `mysql` is already running, builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env` to already exist) — reports `migrate`'s applied/pending status from its logs afterward |
 | `make compose-down` | Stops and removes all three containers |
 
 ### Reading logs from the volume
