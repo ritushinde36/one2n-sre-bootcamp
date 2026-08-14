@@ -1,5 +1,8 @@
 name: student-api
 
+networks:
+  net:
+
 services:
   mysql:
     image: mysql:8.0
@@ -9,6 +12,8 @@ services:
       - "3306:3306"
     volumes:
       - student-mysql-data:/var/lib/mysql
+    networks:
+      - net
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
@@ -22,6 +27,8 @@ services:
     env_file: .env
     entrypoint: migrate
     command: ["up"]
+    networks:
+      - net
     depends_on:
       mysql:
         condition: service_healthy
@@ -35,6 +42,8 @@ services:
       - "${PORT:-8888}:8888"
     volumes:
       - student-logs:/var/log/app
+    networks:
+      - net
     depends_on:
       mysql:
         condition: service_healthy
