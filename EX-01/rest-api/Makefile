@@ -82,9 +82,10 @@ docker-run: docker-network
 # Docker. Run this yourself, once, before scaling up any number of docker-run
 # instances - it's deliberately NOT a docker-run dependency, so that scaling
 # to N app containers doesn't mean N containers each redundantly trying to
-# migrate.
+# migrate. --rm removes the container on exit, but not the
+# student-migrate-logs volume, so MIGRATE_LOG_FILE's output survives.
 docker-migrate: docker-network
-	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate $(IMAGE_NAME):$(VERSION) up
+	docker run --rm --network $(NETWORK_NAME) --env-file .env --entrypoint migrate -v student-migrate-logs:/var/log/app $(IMAGE_NAME):$(VERSION) up
 
 
 # sends SIGTERM so the app's own graceful shutdown gets a chance to drain

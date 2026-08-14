@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -24,7 +25,21 @@ const migrationsDir = "migrations"
 const migrationLockName = "goose_migrate_lock"
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	// MIGRATE_LOG_FILE points at a path on the student-migrate-logs volume, so
+	// these logs survive the container being removed (docker-migrate runs
+	// with --rm, and Compose's migrate container is a one-shot job) instead
+	// of being lost with it. Still logs to stdout too, so `docker logs`/
+	// `docker compose logs` keep working while the container is around.
+	logWriter := io.Writer(os.Stdout)
+	if path := os.Getenv("MIGRATE_LOG_FILE"); path != "" {
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			slog.Error("failed to open log file", "path", path, "error", err)
+			os.Exit(1)
+		}
+		logWriter = io.MultiWriter(os.Stdout, f)
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(logWriter, nil)))
 	goose.SetLogger(&slogGooseLogger{})
 
 	if err := config.LoadConfig(); err != nil {

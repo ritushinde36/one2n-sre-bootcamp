@@ -236,6 +236,7 @@ DSN=root:your_password@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseT
 PORT=8888
 GIN_MODE=release
 LOG_FILE=/var/log/app/rest-api.log
+MIGRATE_LOG_FILE=/var/log/app/migrate.log
 ```
 
 `student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine. If you switch back to running the app directly later, remember to change `DSN`'s host back to `127.0.0.1`.
@@ -262,7 +263,7 @@ Builds `student-rest-api:<version>`, where `<version>` comes from `git describe 
 make docker-migrate
 ```
 
-Runs the `migrate` binary to completion in its own one-off container (`--rm`, `--entrypoint migrate ... up`) against `student-mysql`, *before* any app container starts — like a Kubernetes init container, but implemented as plain Docker + a separate Makefile step, since there's no orchestrator here. Run this once; you don't re-run it per app instance.
+Runs the `migrate` binary to completion in its own one-off container (`--rm`, `--entrypoint migrate ... up`) against `student-mysql`, *before* any app container starts — like a Kubernetes init container, but implemented as plain Docker + a separate Makefile step, since there's no orchestrator here. Run this once; you don't re-run it per app instance. It writes its logs to both stdout and `MIGRATE_LOG_FILE` on the `student-migrate-logs` volume, so they survive `--rm` removing the container — see [Reading logs from the volume](#reading-logs-from-the-volume) below.
 
 **5. Run the app container:**
 
@@ -296,7 +297,7 @@ docker network rm student-api-net
 | `make docker-build` | Builds the app image, tagged with the current git version |
 | `make docker-network` | Creates the `student-api-net` Docker network if it doesn't already exist |
 | `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env` |
-| `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits — run this yourself before `docker-run`, it's not automatic |
+| `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits — run this yourself before `docker-run`, it's not automatic. Logs persist in the `student-migrate-logs` volume despite `--rm` |
 | `make docker-run` | Starts the app container detached, using `.env` (assumes migrations are already applied), with a `student-logs` volume mounted at `/var/log/app` |
 | `make docker-down` | Gracefully stops the app container, then removes it (logs persist in the `student-logs` volume, not lost with the container) |
 | `make docker-mysql-down` | Removes the MySQL container |
@@ -317,6 +318,7 @@ DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTi
 PORT=8888
 GIN_MODE=release
 LOG_FILE=/var/log/app/rest-api.log
+MIGRATE_LOG_FILE=/var/log/app/migrate.log
 ```
 
 **2. Build the image, apply migrations, and start the app:**
@@ -331,7 +333,7 @@ Verify the same way as above (`curl http://localhost:8888/healthcheck`).
 make compose-down
 ```
 
-Stops and removes all three containers (`migrate` has already exited on its own by this point). Compose namespaces its volumes by project name, so what persists is `student-api_student-mysql-data` and `student-api_student-logs` (not the plain names) — see [Reading logs from the volume](#reading-logs-from-the-volume).
+Stops and removes all three containers (`migrate` has already exited on its own by this point). Compose namespaces its volumes by project name, so what persists is `student-api_student-mysql-data`, `student-api_student-logs`, and `student-api_student-migrate-logs` (not the plain names) — see [Reading logs from the volume](#reading-logs-from-the-volume).
 
 | Command | What it does |
 |---|---|
@@ -342,14 +344,18 @@ Stops and removes all three containers (`migrate` has already exited on its own 
 
 Both the manual (`docker-run`/`docker-down`) and Compose (`compose-up`/`compose-down`) flows persist `rest-api`'s logs on a named volume instead of the container's own writable layer — `student-logs` for the manual flow, `student-api_student-logs` for Compose (Compose prefixes volume names with the project name). `rest-api` writes its structured JSON logs to both stdout and `LOG_FILE` (`/var/log/app/rest-api.log`, set in `.env` — see [main.go](main.go)), so the logs outlive `make docker-down` / `make compose-down`: removing a container doesn't remove the volume or its contents.
 
+`migrate` gets the same treatment on its own volume — `student-migrate-logs` for the manual flow, `student-api_student-migrate-logs` for Compose — via `MIGRATE_LOG_FILE` (`/var/log/app/migrate.log`, set in `.env` — see [cmd/migrate/main.go](cmd/migrate/main.go)). This one matters even more than `rest-api`'s: `docker-migrate` always runs with `--rm`, and Compose's `migrate` is a one-shot service that exits right after running — so without a volume, its logs would otherwise disappear the moment the container does, taking any failure output with them.
+
 A named volume isn't a folder on your host you can just open — especially on macOS, where Docker Desktop runs everything inside a VM. To read it after the container is gone (or without stopping a running one), mount the same volume from a disposable container:
 
 ```bash
-docker run --rm -v student-logs:/logs alpine cat /logs/rest-api.log               # manual flow
-docker run --rm -v student-api_student-logs:/logs alpine cat /logs/rest-api.log   # compose flow
+docker run --rm -v student-logs:/logs alpine cat /logs/rest-api.log                       # manual flow, rest-api
+docker run --rm -v student-api_student-logs:/logs alpine cat /logs/rest-api.log           # compose flow, rest-api
+docker run --rm -v student-migrate-logs:/logs alpine cat /logs/migrate.log                # manual flow, migrate
+docker run --rm -v student-api_student-migrate-logs:/logs alpine cat /logs/migrate.log    # compose flow, migrate
 ```
 
-(While the container is still running, `docker exec student-rest-api cat /var/log/app/rest-api.log` / `docker compose exec rest-api cat /var/log/app/rest-api.log`, or plain `docker logs -f student-rest-api` / `docker compose logs rest-api`, all work too.)
+(While the `rest-api` container is still running, `docker exec student-rest-api cat /var/log/app/rest-api.log` / `docker compose exec rest-api cat /var/log/app/rest-api.log`, or plain `docker logs -f student-rest-api` / `docker compose logs rest-api`, all work too. `migrate` exits almost immediately, so `docker logs student-migrate` / `docker compose logs migrate` are usually the more useful live option for it.)
 
 ## Database Migrations
 
@@ -620,6 +626,7 @@ Documented in [.env.example](.env.example):
 | `MYSQL_ROOT_PASSWORD` | Only for Docker | — | Consumed by the `mysql` container itself (via `docker-mysql-up`), not by the app. Ignored when running the app directly. |
 | `MYSQL_DATABASE` | Only for Docker | — | Same as above - the database the `mysql` container creates on first boot. |
 | `LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Path to also write logs to, in addition to stdout - see [main.go](main.go). Set to `/var/log/app/rest-api.log` to persist on the `student-logs` volume. |
+| `MIGRATE_LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Same as `LOG_FILE`, but for `cmd/migrate` - see [cmd/migrate/main.go](cmd/migrate/main.go). Set to `/var/log/app/migrate.log` to persist on the `student-migrate-logs` volume. |
 
 NOTE - `.env` is loaded automatically at startup and is gitignored. The same file is reused for both running the app directly and running it via Docker - see [Running with Docker](#running-with-docker) for what changes between the two.
 
