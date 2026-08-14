@@ -111,6 +111,9 @@ rest-api/
 ├── docker-compose.yml              # Compose setup: mysql + migrate + rest-api services (see Running with Docker Compose)
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
+├── scripts/
+│   └── install-tools.sh           # Installs staticcheck/newman if missing (see Prerequisites)
+│
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv
 │
@@ -151,6 +154,8 @@ rest-api/
 - [Go](https://go.dev/dl/) (version matching [go.mod](go.mod), currently 1.26.5+)
 - A running MySQL server reachable from your machine (local install, or any MySQL 8-compatible instance).
 - [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker).
+- Optional: `staticcheck`, `newman` — only needed for `make staticcheck`/`newman` respectively. Install both (skipping any already present) with [scripts/install-tools.sh](scripts/install-tools.sh), or see it for manual install commands per tool.
+- Optional: `hadolint` — only needed for `make hadolint`. `brew install hadolint` (or see [hadolint#install](https://github.com/hadolint/hadolint#install)).
 
 ## Setup
 

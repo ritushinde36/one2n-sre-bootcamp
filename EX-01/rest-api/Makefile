@@ -45,7 +45,8 @@ test-list:
 test-one:
 	go test ./controllers_test/... -run $(TEST) -v
 
-# requires staticcheck: go install honnef.co/go/tools/cmd/staticcheck@latest
+# requires staticcheck - run ./scripts/install-tools.sh, or see it for the
+# manual install command.
 staticcheck:
 	staticcheck ./...
 
@@ -55,7 +56,8 @@ hadolint:
 	hadolint Dockerfile
 
 # runs the Postman collection against a running server (`make run` first).
-# requires newman: npm install -g newman
+# requires newman - run ./scripts/install-tools.sh, or see it for the manual
+# install command.
 newman:
 	newman run postman/student-api.postman_collection.json
 
