@@ -27,7 +27,7 @@ run: build
 
 # test requires Docker to be running (spins up a real MySQL container).
 test:
-	go test ./...
+	go test ./... -v
 
 # generates a coverage report and opens it in the browser.
 # -coverpkg is needed because the tests live in the separate controllers_test
