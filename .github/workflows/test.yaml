@@ -1,0 +1,12 @@
+name: Test
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: self-hosted
+    steps:
+      - name: Hello World
+        run: echo "Hello, World!"
