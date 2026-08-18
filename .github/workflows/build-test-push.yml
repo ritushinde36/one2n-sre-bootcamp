@@ -51,18 +51,15 @@ jobs:
       - name: Run hadolint
         run: make hadolint
 
-      - name: Use an isolated Docker config
+      - name: Docker login
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/docker-config"
           echo '{}' > "$RUNNER_TEMP/docker-config/config.json"
-          echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
-
-      - name: Docker login
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker-config"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
 
       - name: Docker build
         run: docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:test" .
