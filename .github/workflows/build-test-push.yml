@@ -24,6 +24,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine version
+        run: echo "VERSION=$(git describe --tags --always --dirty)" >> "$GITHUB_ENV"
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -61,6 +67,9 @@ jobs:
           echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - name: Docker build
-        run: docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:test" .
+        run: docker build -t "$IMAGE:$VERSION" .
+
+      - name: Docker push
+        run: docker push "$IMAGE:$VERSION"
 
 
