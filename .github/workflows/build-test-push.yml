@@ -37,6 +37,12 @@ jobs:
       - name: Install lint tools if missing
         run: ./scripts/install-tools.sh
 
+      - name: Run go vet
+        run: make vet
+
+      - name: Check gofmt formatting
+        run: make fmt
+
       - name: Run staticcheck
         run: make staticcheck
 

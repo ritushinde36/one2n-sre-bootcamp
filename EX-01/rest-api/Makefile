@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down
 
 IMAGE_NAME := student-rest-api
 # defaults to the current git version, but can be overridden on the command
@@ -47,6 +47,18 @@ test-list:
 # runs a single test by name, e.g.: make test-one TEST=TestStudentLifecycle_PersistsAcrossRealDB
 test-one:
 	go test ./controllers_test/... -run $(TEST) -v
+
+vet:
+	go vet ./...
+
+# fails (non-zero exit) and prints filenames if anything isn't gofmt-formatted.
+fmt:
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "not gofmt-formatted:"; \
+		echo "$$unformatted"; \
+		exit 1; \
+	fi
 
 # requires staticcheck - run ./scripts/install-tools.sh, or see it for the
 # manual install command.
