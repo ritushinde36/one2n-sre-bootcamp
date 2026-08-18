@@ -56,10 +56,9 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/docker-config"
-          echo '{}' > "$RUNNER_TEMP/docker-config/config.json"
-          export DOCKER_CONFIG="$RUNNER_TEMP/docker-config"
-          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          AUTH=$(printf '%s:%s' "${{ github.actor }}" "$GHCR_TOKEN" | base64)
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "$AUTH" > "$RUNNER_TEMP/docker-config/config.json"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - name: Docker build
         run: docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:test" .

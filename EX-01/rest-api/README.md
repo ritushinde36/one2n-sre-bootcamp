@@ -668,5 +668,3 @@ NOTE - `.env` is loaded automatically at startup and is gitignored. The same fil
 - **`/readyz` returns 503** — the app is up but can't reach the database; check MySQL is running and reachable from wherever the app is deployed.
 - **Migration `up` fails with "refusing to proceed: pre-existing students table does not match migration 00001"** — a `students` table already exists with a schema that doesn't match what migration `00001` expects. Compare the printed `existing` vs `expected` DDL and reconcile manually; `cmd/migrate` will not auto-alter a mismatched table for you.
 - **Creating/updating a student returns 400 mentioning an unexpected field name** (e.g. `id`, `created_at`) — the request body included a field the API doesn't allow clients to set. Only `name`, `email`, `age`, `class`, and `department` are accepted.
-
-
