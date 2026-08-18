@@ -2,7 +2,6 @@
 
 A Go-based REST API for doing CRUD operations on student records, built with Gin, GORM, and MySQL. It includes : structured logging, graceful shutdown, health/readiness probes, versioned DB migrations, and an integration test suite.
 
-test
 
 ## Table of Contents
 
