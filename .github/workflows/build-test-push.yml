@@ -1,0 +1,59 @@
+name: build-test-push
+
+on:
+  push:
+    branches:
+      - "feature/ci"
+      - "main"
+    paths:
+      - "EX-01/rest-api/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-push:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: EX-01/rest-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: EX-01/rest-api/go.mod
+
+      - name: Build API
+        run: make build
+
+      - name: Run tests
+        run: make test
+
+      - name: Install lint tools if missing
+        run: ./scripts/install-tools.sh
+
+      - name: Run staticcheck
+        run: make staticcheck
+
+      - name: Run hadolint
+        run: make hadolint
+
+      - name: Docker login
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker build and push
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/student-rest-api
+        run: |
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
