@@ -1,4 +1,5 @@
 .env
+env
 bin/
 controllers_test/
 postman/
