@@ -165,6 +165,8 @@ On macOS, install everything above (skipping anything already present) with:
 
 See [scripts/install-prerequisites.sh](scripts/install-prerequisites.sh) for what it installs and how, or for manual install commands per tool on other platforms.
 
+Note: the script only installs Docker Desktop, it doesn't start it. After installing, open Docker.app once by hand (menu bar icon should show it running) before using any `docker-*`/`compose-*`/`test*` target - otherwise you'll hit "Cannot connect to the Docker daemon".
+
 ## Setup
 
 
