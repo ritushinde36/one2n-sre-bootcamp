@@ -237,12 +237,15 @@ The app can also be built and run as a container, without a local Go toolchain. 
 ```
 MYSQL_ROOT_PASSWORD=your_password
 MYSQL_DATABASE=student_db
+MYSQL_PORT=3306
 DSN=root:your_password@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
 GIN_MODE=release
 LOG_FILE=/var/log/app/rest-api.log
 MIGRATE_LOG_FILE=/var/log/app/migrate.log
 ```
+
+`MYSQL_PORT` is the host port `docker-mysql-up` publishes `mysql`'s `3306` on. Only change it (e.g. to `3307`) if something on your machine is already listening on 3306; `DSN`'s port stays `3306` either way, since that's the container's own internal port, unaffected by this value.
 
 `student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine. If you switch back to running the app directly later, remember to change `DSN`'s host back to `127.0.0.1`.
 
@@ -252,7 +255,7 @@ MIGRATE_LOG_FILE=/var/log/app/migrate.log
 make docker-mysql-up
 ```
 
-Creates the `student-api-net` Docker network (if it doesn't already exist) and starts a `mysql:8.0` container named `student-mysql` on it, with data persisted in the `student-mysql-data` volume and port `3306` published to the host.
+Creates the `student-api-net` Docker network (if it doesn't already exist) and starts a `mysql:8.0` container named `student-mysql` on it, with data persisted in the `student-mysql-data` volume and port `3306` published to the host — override with `MYSQL_PORT` (in `.env` or on the command line, e.g. `make docker-mysql-up MYSQL_PORT=3307`) if something on your machine is already listening on 3306.
 
 **3. Build the image:**
 
@@ -319,6 +322,7 @@ Note: [`config.LoadConfig()`](config/load_config.go) only returns an error on a 
 ```
 MYSQL_ROOT_PASSWORD=yourpassword
 MYSQL_DATABASE=student_db
+MYSQL_PORT=3306
 DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
 GIN_MODE=release
@@ -332,7 +336,7 @@ MIGRATE_LOG_FILE=/var/log/app/migrate.log
 make compose-up
 ```
 
-Before starting anything, it prints whether `mysql` is already running (informational only — it doesn't skip or change what Compose does next, since `up`/goose are already safe to rerun). After `up` finishes, it also tails `migrate`'s own logs so you can see right away whether it applied anything or found nothing pending, instead of having to check separately.
+Before starting anything, it prints whether `mysql` is already running (informational only — it doesn't skip or change what Compose does next). After `up` finishes, it also tails `migrate`'s own logs so you can see right away whether it applied anything or found nothing pending, instead of having to check separately.
 
 Verify the same way as above (`curl http://localhost:8888/healthcheck`).
 
@@ -347,6 +351,28 @@ Stops and removes all three containers (`migrate` has already exited on its own 
 | `make compose-up` | Reports whether `mysql` is already running, builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env` to already exist) — reports `migrate`'s applied/pending status from its logs afterward |
 | `make compose-migrate` | Runs a one-off migrate command (`MIGRATE_CMD`, default `up`) via `docker compose run --rm`, in its own container separate from the one `compose-up` manages |
 | `make compose-down` | Stops and removes all three containers |
+
+### Overriding Compose variables
+
+Four variables can be overridden — either set them in `.env`, or pass them on the command line to `make compose-up` (as `VAR=value make compose-up` or `make compose-up VAR=value`:
+
+| Variable | Default | What it changes |
+|---|---|---|
+| `IMAGE_NAME` | `student-rest-api` | Name of the image `compose-up` builds and runs for `migrate`/`rest-api`, e.g. `<name>:<version>` |
+| `VERSION` | `git describe --tags --always --dirty` | Tag for that same image - same default `make docker-build` uses |
+| `PORT` | `8888` | Host **and** container port `rest-api` listens on/publishes - both sides move together, so the app is always reachable on whichever port you set |
+| `MYSQL_PORT` | `3306` | Host port `mysql`'s `3306` is published on - only the host side moves; `DSN`'s port always stays `3306`, since that's the container's fixed internal port |
+
+```bash
+# tag/run a specific version instead of the current git describe
+make compose-up VERSION=1.2.3
+
+# build/run under a different image name
+make compose-up IMAGE_NAME=my-student-api
+
+# avoid ports already taken on your machine
+make compose-up PORT=9000 MYSQL_PORT=3307
+```
 
 ### Reading logs from the volume
 
@@ -653,6 +679,7 @@ Documented in [.env.example](.env.example):
 | `GIN_MODE` | No | `debug` (Gin's own default) | Gin's runtime mode (`debug`/`release`/`test`). Set to `release` for production - see [main.go](main.go). |
 | `MYSQL_ROOT_PASSWORD` | Only for Docker | — | Consumed by the `mysql` container itself (via `docker-mysql-up`), not by the app. Ignored when running the app directly. |
 | `MYSQL_DATABASE` | Only for Docker | — | Same as above - the database the `mysql` container creates on first boot. |
+| `MYSQL_PORT` | No | `3306` | Only meaningful for Compose. Host port `mysql`'s `3306` is published on - override if something on your machine already listens on 3306. Doesn't affect `DSN`: other services always reach it as `student-mysql:3306` over the Docker network. |
 | `LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Path to also write logs to, in addition to stdout - see [main.go](main.go). Set to `/var/log/app/rest-api.log` to persist on the `student-logs` volume. |
 | `MIGRATE_LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Same as `LOG_FILE`, but for `cmd/migrate` - see [cmd/migrate/main.go](cmd/migrate/main.go). Set to `/var/log/app/migrate.log` to persist on the `student-migrate-logs` volume. |
 

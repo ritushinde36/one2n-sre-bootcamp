@@ -9,7 +9,7 @@ services:
     container_name: student-mysql
     env_file: .env
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - student-mysql-data:/var/lib/mysql
     networks:
@@ -40,8 +40,10 @@ services:
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-rest-api
     env_file: .env
+    environment:
+      - PORT=${PORT:-8888}
     ports:
-      - "${PORT:-8888}:8888"
+      - "${PORT:-8888}:${PORT:-8888}"
     volumes:
       - student-logs:/var/log/app
     networks:

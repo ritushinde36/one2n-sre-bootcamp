@@ -14,9 +14,13 @@ HOST_PORT := 8888
 # override on the command line to run down/status instead of up, e.g.:
 #   make docker-migrate MIGRATE_CMD=status
 MIGRATE_CMD := up
+# host port mysql's 3306 is published on - override if 3306 is already taken
+# on your machine, e.g.: make docker-mysql-up MYSQL_PORT=3307
+MYSQL_PORT := 3306
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
-# so no credential value ever appears in this committed Makefile.
+# so no credential value ever appears in this committed Makefile. Also picks
+# up MYSQL_PORT if set there, overriding the default above.
 -include .env
 
 deps:
@@ -108,7 +112,7 @@ docker-mysql-up: docker-network
 	docker run -d --name $(MYSQL_CONTAINER) \
 		--network $(NETWORK_NAME) \
 		-v student-mysql-data:/var/lib/mysql \
-		-p 3306:3306 \
+		-p $(MYSQL_PORT):3306 \
 		-e MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) \
 		-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
 		mysql:8.0
