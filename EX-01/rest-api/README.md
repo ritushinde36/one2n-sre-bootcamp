@@ -112,7 +112,7 @@ rest-api/
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
 │
 ├── scripts/
-│   └── install-tools.sh           # Installs staticcheck/newman if missing (see Prerequisites)
+│   └── install-prerequisites.sh   # Installs everything in Prerequisites if missing (macOS only)
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv
@@ -154,8 +154,16 @@ rest-api/
 - [Go](https://go.dev/dl/) (version matching [go.mod](go.mod), currently 1.26.5+)
 - A running MySQL server reachable from your machine (local install, or any MySQL 8-compatible instance).
 - [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker) or [Running with Docker Compose](#running-with-docker-compose).
-- Optional: `staticcheck`, `newman` — only needed for `make staticcheck`/`newman` respectively. Install both (skipping any already present) with [scripts/install-tools.sh](scripts/install-tools.sh), or see it for manual install commands per tool.
-- Optional: `hadolint` — only needed for `make hadolint`. `brew install hadolint` (or see [hadolint#install](https://github.com/hadolint/hadolint#install)).
+- `make` and `git` — needed to run any Makefile target (including the `install-prerequisites.sh` helper below) and to tag Docker images by version, respectively.
+- Optional: `staticcheck`, `newman` (and its own dependency, Node.js/npm), `hadolint` — only needed for `make staticcheck`/`newman`/`hadolint` respectively.
+
+On macOS, install everything above (skipping anything already present) with:
+
+```bash
+./scripts/install-prerequisites.sh
+```
+
+See [scripts/install-prerequisites.sh](scripts/install-prerequisites.sh) for what it installs and how, or for manual install commands per tool on other platforms.
 
 ## Setup
 
@@ -560,7 +568,7 @@ A ready-to-import collection lives at [postman/student-api.postman_collection.js
 2. The collection uses a `base_url` variable (defaults to `http://localhost:8888`).
 3. Requests are designed to run **top-to-bottom**: "Create Student" captures the new student's ID into a `student_id` collection variable, which later requests (Get/Update/Delete by ID) reuse. Running requests out of order or in isolation may cause the ID-dependent ones to fail.
 
-**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `./scripts/install-tools.sh` (or directly: `npm install -g newman`), then:
+**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `./scripts/install-prerequisites.sh` (or directly: `npm install -g newman`), then:
 
 ```bash
 make newman
@@ -620,7 +628,7 @@ go test ./controllers_test/... -run TestStudentLifecycle_PersistsAcrossRealDB -v
 **Install it once:**
 
 ```bash
-./scripts/install-tools.sh
+./scripts/install-prerequisites.sh
 # or directly
 go install honnef.co/go/tools/cmd/staticcheck@latest
 ```
@@ -635,7 +643,7 @@ staticcheck ./...
 
 **Dockerfile linting.** [hadolint](https://github.com/hadolint/hadolint) catches Dockerfile issues like missed layer-consolidation opportunities, unpinned base images, and other common anti-patterns.
 
-**Install it once:** `brew install hadolint` (or see [hadolint's install docs](https://github.com/hadolint/hadolint#install) for other platforms).
+**Install it once:** `./scripts/install-prerequisites.sh` on macOS, or `brew install hadolint` directly (see [hadolint's install docs](https://github.com/hadolint/hadolint#install) for other platforms).
 
 **Run it:**
 

@@ -52,19 +52,19 @@ test-list:
 test-one:
 	go test ./controllers_test/... -run $(TEST) -v
 
-# requires staticcheck - run ./scripts/install-tools.sh, or see it for the
-# manual install command.
+# requires staticcheck - run ./scripts/install-prerequisites.sh (macOS), or
+# see it for the manual install command.
 staticcheck:
 	staticcheck ./...
 
-# lints the Dockerfile - requires hadolint: brew install hadolint (or see
-# https://github.com/hadolint/hadolint#install)
+# lints the Dockerfile - requires hadolint: ./scripts/install-prerequisites.sh
+# (macOS), or brew install hadolint / https://github.com/hadolint/hadolint#install
 hadolint:
 	hadolint Dockerfile
 
 # runs the Postman collection against a running server (`make run` first).
-# requires newman - run ./scripts/install-tools.sh, or see it for the manual
-# install command.
+# requires newman - run ./scripts/install-prerequisites.sh (macOS), or see it
+# for the manual install command.
 newman:
 	newman run postman/student-api.postman_collection.json
 
