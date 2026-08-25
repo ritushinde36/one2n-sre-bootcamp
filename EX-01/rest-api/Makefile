@@ -131,9 +131,16 @@ compose-up:
 	else \
 		echo "==> mysql is not running yet - compose will start it"; \
 	fi
-	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build
-	@echo "==> migration status (from the migrate service's own logs):"
-	@docker compose logs migrate --no-color | tail -n 3
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build mysql migrate
+	@echo "==> waiting for migrate to finish..."
+	@migrate_exit="$$(docker wait student-migrate)"; \
+	echo "==> migration status (from the migrate service's own logs):"; \
+	docker compose logs migrate --no-color | tail -n 3; \
+	if [ "$$migrate_exit" != "0" ]; then \
+		echo "==> migrate failed (exit $$migrate_exit) - not starting rest-api" >&2; \
+		exit 1; \
+	fi
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --no-deps rest-api
 
 # runs a one-off migrate command via Compose (default: up), e.g.:
 #   make compose-migrate MIGRATE_CMD=status
