@@ -141,6 +141,11 @@ install_hadolint() {
 # Only auto-run everything when executed directly, not when sourced - keeps
 # each function individually callable (e.g. from a fresh shell after sourcing).
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	if [[ "$(uname -s)" != "Darwin" ]]; then
+		echo "This script is macOS-only (relies on Homebrew casks and Xcode Command Line Tools)." >&2
+		echo "On other platforms, install each tool from the README's Prerequisites section manually." >&2
+		exit 1
+	fi
 	status=0
 	ensure_homebrew || status=1
 	install_git || status=1
