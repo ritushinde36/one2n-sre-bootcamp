@@ -43,7 +43,10 @@ jobs:
         run: make test
 
       - name: Install lint tools if missing
-        run: ./scripts/install-tools.sh
+        run: |
+          source scripts/install-prerequisites.sh
+          install_staticcheck
+          install_hadolint
 
       - name: Run go vet
         run: make vet
