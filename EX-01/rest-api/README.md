@@ -19,6 +19,7 @@ A Go-based REST API for doing CRUD operations on student records, built with Gin
 - [Postman Collection](#postman-collection)
 - [Testing](#testing)
 - [Static Analysis](#static-analysis)
+- [CI/CD](#cicd)
 - [Logging](#logging)
 - [Health &amp; Readiness Checks](#health--readiness-checks)
 - [Graceful Shutdown](#graceful-shutdown)
@@ -655,8 +656,25 @@ make hadolint
 hadolint Dockerfile
 ```
 
-Note: neither `staticcheck` nor `hadolint` run automatically anywhere (no CI is configured for this repo) — both are opt-in, run-it-yourself checks.
+Both also run automatically in CI on every push — see [CI/CD](#cicd) — so failures surface there even if you skip running them locally.
 
+## CI/CD
+
+[.github/workflows/build-test-push.yml](../../.github/workflows/build-test-push.yml) builds, tests, lints, and publishes a Docker image on every push to `feature/ci` or `main` that touches `EX-01/rest-api/**` (or via manual "Run workflow" dispatch).
+
+**Pipeline steps, in order:**
+
+1. Checkout (full history/tags, needed for `git describe`)
+2. Determine the image version from `git describe --tags --always --dirty`
+3. `make build`
+4. `make test` — runs the integration suite, which spins up a real MySQL container via testcontainers-go
+5. Install lint tools, then `make vet`, `make fmt`, `make staticcheck`, `make hadolint`
+6. Log in to GHCR
+7. `docker build` and `docker push` — publishes the image
+
+**Image publishing:** the built image is pushed to [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) (GHCR), under this repo's owner, as `ghcr.io/<owner>/student-rest-api:<version>`.
+
+**Runner:** this pipeline runs on a [self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners) (`runs-on: self-hosted`), not GitHub-hosted infrastructure. Because the test step needs a working Docker daemon to launch the MySQL container, **Docker (Desktop) must be running on the runner machine** before triggering the pipeline.
 
 ## Logging
 
@@ -703,4 +721,4 @@ NOTE - `.env` is loaded automatically at startup and is gitignored. The same fil
 - **`make test` hangs or fails to start** — Docker isn't running. The integration suite needs Docker to launch its MySQL Testcontainer.
 - **`/readyz` returns 503** — the app is up but can't reach the database; check MySQL is running and reachable from wherever the app is deployed.
 - **Migration `up` fails with "refusing to proceed: pre-existing students table does not match migration 00001"** — a `students` table already exists with a schema that doesn't match what migration `00001` expects. Compare the printed `existing` vs `expected` DDL and reconcile manually; `cmd/migrate` will not auto-alter a mismatched table for you.
-- **Creating/updating a student returns 400 mentioning an unexpected field name** (e.g. `id`, `created_at`) — the request body included a field the API doesn't allow clients to set. Only `name`, `email`, `age`, `class`, and `department` are accepted.
+- **Creating/updating a student returns 400 mentioning an unexpected field name** (e.g. `id`, `created_at`) — the request body included a field the API doesn't allow clients to set. Only `name`, `email`, `age`, `class`, and `department` are accepted. 
