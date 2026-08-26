@@ -1,5 +1,5 @@
 .env
-secrets/
 bin/
 coverage.out
 logs/
+no-multi-stage-docker-file

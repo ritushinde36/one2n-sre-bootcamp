@@ -13,6 +13,7 @@ A Go-based REST API for doing CRUD operations on student records, built with Gin
 - [Setup](#setup)
 - [Running the App](#running-the-app)
 - [Running with Docker](#running-with-docker)
+- [Running with Docker Compose](#running-with-docker-compose)
 - [Database Migrations](#database-migrations)
 - [API Reference](#api-reference)
 - [Postman Collection](#postman-collection)
@@ -48,6 +49,8 @@ A Go-based REST API for doing CRUD operations on student records, built with Gin
 | Logging | Go standard library `log/slog` (JSON handler) |
 | Test assertions | [stretchr/testify](https://github.com/stretchr/testify) |
 | Test infrastructure | [testcontainers-go](https://github.com/testcontainers/testcontainers-go) |
+| Containerization | [Docker](https://www.docker.com/) (multi-stage [Dockerfile](Dockerfile)) |
+| Container orchestration (local) | [Docker Compose](https://docs.docker.com/compose/) ([docker-compose.yml](docker-compose.yml)) |
 
 Go version: see [go.mod](go.mod) (currently 1.26.5).
 
@@ -100,11 +103,16 @@ The `Student` struct ([models/studentModel.go](models/studentModel.go)) is both 
 ```
 rest-api/
 ├── main.go                        # Application entry point: config, DB connect, routes, graceful shutdown
-├── Makefile                       # build / run / test / migrate-* targets
+├── Makefile                       # build / run / test / migrate-* / docker-* / compose-* targets
 ├── go.mod / go.sum                # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables - used both locally and for Docker
 ├── Dockerfile                     # Multi-stage build for the app image (see Running with Docker)
+├── docker-entrypoint.sh            # Image entrypoint: execs into rest-api (migrations run separately, see Running with Docker)
+├── docker-compose.yml              # Compose setup: mysql + migrate + rest-api services (see Running with Docker Compose)
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
+│
+├── scripts/
+│   └── install-prerequisites.sh   # Installs everything in Prerequisites if missing (macOS only)
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv
@@ -145,7 +153,19 @@ rest-api/
 
 - [Go](https://go.dev/dl/) (version matching [go.mod](go.mod), currently 1.26.5+)
 - A running MySQL server reachable from your machine (local install, or any MySQL 8-compatible instance).
-- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker).
+- [Docker](https://www.docker.com/) — **required to run the test suite**, since tests start a real MySQL container via Testcontainers. Also required if you want to run the app itself via containers instead of a local Go toolchain — see [Running with Docker](#running-with-docker) or [Running with Docker Compose](#running-with-docker-compose).
+- `make` and `git` — needed to run any Makefile target (including the `install-prerequisites.sh` helper below) and to tag Docker images by version, respectively.
+- Optional: `staticcheck`, `newman` (and its own dependency, Node.js/npm), `hadolint` — only needed for `make staticcheck`/`newman`/`hadolint` respectively.
+
+On macOS, install everything above (skipping anything already present) with:
+
+```bash
+./scripts/install-prerequisites.sh
+```
+
+See [scripts/install-prerequisites.sh](scripts/install-prerequisites.sh) for what it installs and how, or for manual install commands per tool on other platforms.
+
+Note: the script only installs Docker Desktop, it doesn't start it. After installing, open Docker.app once by hand (menu bar icon should show it running) before using any `docker-*`/`compose-*`/`test*` target - otherwise you'll hit "Cannot connect to the Docker daemon".
 
 ## Setup
 
@@ -197,7 +217,7 @@ The [Makefile](Makefile) defines the standard entry points:
 | `make deps` | Installs/tidies Go module dependencies (`go mod tidy`) |
 | `make build` | Compiles the binary to `bin/rest-api` |
 | `make run` | Builds, then runs `./bin/rest-api` |
-| `make test` | Runs the full test suite (`go test ./...`) — **requires Docker running** |
+| `make test` | Runs the full test suite in verbose mode (`go test ./... -v`) — **requires Docker running** |
 | `make test-coverage` | Runs the full suite with coverage and opens an HTML report — **requires Docker running** |
 | `make test-list` | Lists every runnable test's name — no Docker required |
 | `make test-one TEST=<name>` | Runs a single test by name — **requires Docker running** |
@@ -218,6 +238,7 @@ The app can also be built and run as a container, without a local Go toolchain. 
 
 - [Dockerfile](Dockerfile) — multi-stage build: compiles both the `rest-api` and `migrate` binaries in a `golang:1.26-alpine` build stage, then copies them (plus `migrations/`) into a minimal `alpine:3.20` runtime image.
 - [docker-entrypoint.sh](docker-entrypoint.sh) — the image's entrypoint. Just `exec`s into `rest-api`; it doesn't migrate. Migrations run as a separate one-off step (`make docker-migrate`) before the app container ever starts — see step 4 below for why.
+- [docker-compose.yml](docker-compose.yml) — runs the same app + MySQL + migrate setup as one Compose project instead of the manual steps below; see [Running with Docker Compose](#running-with-docker-compose).
 - [.dockerignore](.dockerignore) — keeps `.env`, `bin/`, tests, the Postman collection, and markdown/git files out of the build context.
 - `.env` — the same file from [Setup](#setup) step 3, reused here. It's also consumed by the Docker Makefile targets below via `--env-file`.
 
@@ -226,10 +247,15 @@ The app can also be built and run as a container, without a local Go toolchain. 
 ```
 MYSQL_ROOT_PASSWORD=your_password
 MYSQL_DATABASE=student_db
+MYSQL_PORT=3306
 DSN=root:your_password@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
 PORT=8888
 GIN_MODE=release
+LOG_FILE=/var/log/app/rest-api.log
+MIGRATE_LOG_FILE=/var/log/app/migrate.log
 ```
+
+`MYSQL_PORT` is the host port `docker-mysql-up` publishes `mysql`'s `3306` on. Only change it (e.g. to `3307`) if something on your machine is already listening on 3306; `DSN`'s port stays `3306` either way, since that's the container's own internal port, unaffected by this value.
 
 `student-mysql` is the container name the app connects to over the Docker network created in the next step — that hostname only resolves for containers on that network, not from your host machine. If you switch back to running the app directly later, remember to change `DSN`'s host back to `127.0.0.1`.
 
@@ -239,7 +265,7 @@ GIN_MODE=release
 make docker-mysql-up
 ```
 
-Creates the `student-api-net` Docker network (if it doesn't already exist) and starts a `mysql:8.0` container named `student-mysql` on it, with data persisted in the `student-mysql-data` volume and port `3306` published to the host.
+Creates the `student-api-net` Docker network (if it doesn't already exist) and starts a `mysql:8.0` container named `student-mysql` on it, with data persisted in the `student-mysql-data` volume and port `3306` published to the host — override with `MYSQL_PORT` (in `.env` or on the command line, e.g. `make docker-mysql-up MYSQL_PORT=3307`) if something on your machine is already listening on 3306.
 
 **3. Build the image:**
 
@@ -255,7 +281,7 @@ Builds `student-rest-api:<version>`, where `<version>` comes from `git describe 
 make docker-migrate
 ```
 
-Runs the `migrate` binary to completion in its own one-off container (`--rm`, `--entrypoint migrate ... up`) against `student-mysql`, *before* any app container starts — like a Kubernetes init container, but implemented as plain Docker + a separate Makefile step, since there's no orchestrator here. Run this once; you don't re-run it per app instance.
+Runs the `migrate` binary to completion in its own one-off container (`--rm`, `--entrypoint migrate ... up`) against `student-mysql`, *before* any app container starts — like a Kubernetes init container, but implemented as plain Docker + a separate Makefile step, since there's no orchestrator here. Run this once; you don't re-run it per app instance. It writes its logs to both stdout and `MIGRATE_LOG_FILE` on the `student-migrate-logs` volume, so they survive `--rm` removing the container — see [Reading logs from the volume](#reading-logs-from-the-volume) below.
 
 **5. Run the app container:**
 
@@ -263,7 +289,7 @@ Runs the `migrate` binary to completion in its own one-off container (`--rm`, `-
 make docker-run
 ```
 
-Starts the image detached, named `student-rest-api`, on the `student-api-net` network with `.env` as its environment file, publishing port `8888`. The app connects to MySQL using the container-to-container `DSN` from `.env`. Tail its logs with `docker logs -f student-rest-api`.
+Starts the image detached, named `student-rest-api`, on the `student-api-net` network with `.env` as its environment file, publishing port `8888`, with a `student-logs` volume mounted at `/var/log/app`. The app connects to MySQL using the container-to-container `DSN` from `.env`. It writes its logs to both stdout (tail with `docker logs -f student-rest-api`) and `LOG_FILE` on the `student-logs` volume, so they survive `make docker-down` — see [Reading logs from the volume](#reading-logs-from-the-volume) below.
 
 `docker-run` deliberately does **not** depend on `docker-migrate` — run `docker-migrate` yourself first. This matters for scaling: migrations used to run inside every app container's own entrypoint, so multiple app containers starting concurrently would race to apply the same migration against the same database. Pulling migrations into their own one-off step, run once, avoids N containers each redundantly (if now safely — `cmd/migrate` holds a MySQL lock) trying to migrate on their own.
 
@@ -279,7 +305,7 @@ curl http://localhost:8888/readyz
 **Cleanup:**
 
 ```bash
-make docker-down       # gracefully stops (SIGTERM), saves its logs to logs/, and removes the app container
+make docker-down       # gracefully stops (SIGTERM) and removes the app container - logs persist in the student-logs volume
 make docker-mysql-down # removes the MySQL container (the student-mysql-data volume persists)
 docker network rm student-api-net
 ```
@@ -289,25 +315,123 @@ docker network rm student-api-net
 | `make docker-build` | Builds the app image, tagged with the current git version |
 | `make docker-network` | Creates the `student-api-net` Docker network if it doesn't already exist |
 | `make docker-mysql-up` | Starts a `mysql:8.0` container on that network, using credentials from `.env` |
-| `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits — run this yourself before `docker-run`, it's not automatic |
-| `make docker-run` | Starts the app container detached, using `.env` (assumes migrations are already applied) |
-| `make docker-down` | Gracefully stops the app container, saves its logs to `logs/<container>-<timestamp>.log`, then removes it |
+| `make docker-migrate` | Runs pending migrations to completion in a one-off `--rm` container, then exits — run this yourself before `docker-run`, it's not automatic. Logs persist in the `student-migrate-logs` volume despite `--rm` |
+| `make docker-run` | Starts the app container detached, using `.env` (assumes migrations are already applied), with a `student-logs` volume mounted at `/var/log/app` |
+| `make docker-down` | Gracefully stops the app container, then removes it (logs persist in the `student-logs` volume, not lost with the container) |
 | `make docker-mysql-down` | Removes the MySQL container |
 
+Note: [`config.LoadConfig()`](config/load_config.go) only returns an error on a `.env` read failure other than "file not found" — so running in a container with no `.env` file present (which `.dockerignore` guarantees) is fine; environment variables passed via `--env-file` are picked up directly.
+
+
+## Running with Docker Compose
+
+[docker-compose.yml](docker-compose.yml) replaces the manual network/build/run/migrate steps above with three services: `mysql`, `migrate`, and `rest-api`. It explicitly defines a `net` network — namespaced by project like the volumes below, so it comes up as `student-api_net` — and attaches all three services to it, resolving each other by service name (or `container_name`); there's no equivalent of the `docker-network`/`make docker-network` step to run yourself. All three read their configuration straight from `.env` via Compose's `env_file:`, the same file the manual `docker-run`/`docker-mysql-up`/`docker-migrate` targets use. `migrate` runs the `migrate up` binary to completion (mirroring the manual `docker-migrate` one-off container) once `mysql`'s healthcheck (`mysqladmin ping`) passes; `rest-api` then waits on both `mysql` being healthy and `migrate` having exited successfully (`condition: service_completed_successfully`) before it starts.
+
+**1. Make sure `.env` exists** (create it via [Setup](#setup) step 3 if you haven't already — Compose reads the same file as the manual Docker flow above), with `DSN`'s host set to `student-mysql`:
+
+```
+MYSQL_ROOT_PASSWORD=yourpassword
+MYSQL_DATABASE=student_db
+MYSQL_PORT=3306
+DSN=root:yourpassword@tcp(student-mysql:3306)/student_db?charset=utf8mb4&parseTime=True&loc=Local
+PORT=8888
+GIN_MODE=release
+LOG_FILE=/var/log/app/rest-api.log
+MIGRATE_LOG_FILE=/var/log/app/migrate.log
+```
+
+**2. Build the image, apply migrations, and start the app:**
+
+```bash
+make compose-up
+```
+
+Before starting anything, it prints whether `mysql` is already running (informational only — it doesn't skip or change what Compose does next). After `up` finishes, it also tails `migrate`'s own logs so you can see right away whether it applied anything or found nothing pending, instead of having to check separately.
+
+Verify the same way as above (`curl http://localhost:8888/healthcheck`).
+
+```bash
+make compose-down
+```
+
+Stops and removes all three containers (`migrate` has already exited on its own by this point). Compose namespaces its volumes by project name, so what persists is `student-api_student-mysql-data`, `student-api_student-logs`, and `student-api_student-migrate-logs` (not the plain names) — see [Reading logs from the volume](#reading-logs-from-the-volume).
+
+| Command | What it does |
+|---|---|
+| `make compose-up` | Reports whether `mysql` is already running, builds the app image, starts `mysql`, runs `migrate` to completion, then starts `rest-api` detached (requires `.env` to already exist) — reports `migrate`'s applied/pending status from its logs afterward |
+| `make compose-migrate` | Runs a one-off migrate command (`MIGRATE_CMD`, default `up`) via `docker compose run --rm`, in its own container separate from the one `compose-up` manages |
+| `make compose-down` | Stops and removes all three containers |
+
+### Overriding Compose variables
+
+Four variables can be overridden — either set them in `.env`, or pass them on the command line to `make compose-up` (as `VAR=value make compose-up` or `make compose-up VAR=value`:
+
+| Variable | Default | What it changes |
+|---|---|---|
+| `IMAGE_NAME` | `student-rest-api` | Name of the image `compose-up` builds and runs for `migrate`/`rest-api`, e.g. `<name>:<version>` |
+| `VERSION` | `git describe --tags --always --dirty` | Tag for that same image - same default `make docker-build` uses |
+| `PORT` | `8888` | Host **and** container port `rest-api` listens on/publishes - both sides move together, so the app is always reachable on whichever port you set |
+| `MYSQL_PORT` | `3306` | Host port `mysql`'s `3306` is published on - only the host side moves; `DSN`'s port always stays `3306`, since that's the container's fixed internal port |
+
+```bash
+# tag/run a specific version instead of the current git describe
+make compose-up VERSION=1.2.3
+
+# build/run under a different image name
+make compose-up IMAGE_NAME=my-student-api
+
+# avoid ports already taken on your machine
+make compose-up PORT=9000 MYSQL_PORT=3307
+```
+
+### Reading logs from the volume
+
+Both the manual (`docker-run`/`docker-down`) and Compose (`compose-up`/`compose-down`) flows persist `rest-api`'s logs on a named volume instead of the container's own writable layer — `student-logs` for the manual flow, `student-api_student-logs` for Compose (Compose prefixes volume names with the project name). `rest-api` writes its structured JSON logs to both stdout and `LOG_FILE` (`/var/log/app/rest-api.log`, set in `.env` — see [main.go](main.go)), so the logs outlive `make docker-down` / `make compose-down`: removing a container doesn't remove the volume or its contents.
+
+`migrate` gets the same treatment on its own volume — `student-migrate-logs` for the manual flow, `student-api_student-migrate-logs` for Compose — via `MIGRATE_LOG_FILE` (`/var/log/app/migrate.log`, set in `.env` — see [cmd/migrate/main.go](cmd/migrate/main.go)). This one matters even more than `rest-api`'s: `docker-migrate` always runs with `--rm`, and Compose's `migrate` is a one-shot service that exits right after running — so without a volume, its logs would otherwise disappear the moment the container does, taking any failure output with them.
+
+A named volume isn't a folder on your host you can just open — especially on macOS, where Docker Desktop runs everything inside a VM. To read it after the container is gone (or without stopping a running one), mount the same volume from a disposable container:
+
+```bash
+docker run --rm -v student-logs:/logs alpine cat /logs/rest-api.log                       # manual flow, rest-api
+docker run --rm -v student-api_student-logs:/logs alpine cat /logs/rest-api.log           # compose flow, rest-api
+docker run --rm -v student-migrate-logs:/logs alpine cat /logs/migrate.log                # manual flow, migrate
+docker run --rm -v student-api_student-migrate-logs:/logs alpine cat /logs/migrate.log    # compose flow, migrate
+```
+
+(While the `rest-api` container is still running, `docker exec student-rest-api cat /var/log/app/rest-api.log` / `docker compose exec rest-api cat /var/log/app/rest-api.log`, or plain `docker logs -f student-rest-api` / `docker compose logs rest-api`, all work too. `migrate` exits almost immediately, so `docker logs student-migrate` / `docker compose logs migrate` are usually the more useful live option for it.)
 
 ## Database Migrations
 
-Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files. (This section covers running them yourself against a local MySQL install — if you're using the [Docker workflow](#running-with-docker), run `make docker-migrate` once before `make docker-run`; migrations don't run automatically on every container boot, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing.)
+Schema changes are managed with [goose](https://github.com/pressly/goose) and live in [migrations/](migrations/) as paired up/down SQL files.
 
 - `00001_create_students_table.sql` — creates the `students` table
 - `00002_add_not_null_constraints.sql` — tightens `name`/`email`/`age`/`class`/`department` to `NOT NULL`
 
-Run them via the Makefile targets above, or directly:
+**Running locally**, against a local MySQL install — via the Makefile targets above, or directly:
 
 ```bash
 go run ./cmd/migrate up       # apply all pending migrations
 go run ./cmd/migrate down     # roll back the last migration
 go run ./cmd/migrate status   # show applied/pending migrations
+```
+
+**Running via the manual [Docker workflow](#running-with-docker):**
+
+```bash
+make docker-migrate                     # apply all pending migrations
+make docker-migrate MIGRATE_CMD=down    # roll back the last migration
+make docker-migrate MIGRATE_CMD=status  # show applied/pending migrations
+```
+
+Run `up` once before `make docker-run` — migrations don't run automatically on every `docker-run`, and `cmd/migrate` holds a MySQL lock so concurrent invocations serialize safely instead of racing.
+
+**Running via [Docker Compose](#running-with-docker-compose):** `make compose-up` already runs `up` automatically before starting `rest-api`, so there's nothing separate to run for that. For `down`/`status`, or to rerun `up` on demand, use `compose-migrate`, which runs the command in its own one-off container via `docker compose run --rm` — separate from (and safe to run alongside) the container `compose-up` manages:
+
+```bash
+make compose-migrate                     # apply all pending migrations
+make compose-migrate MIGRATE_CMD=down    # roll back the last migration
+make compose-migrate MIGRATE_CMD=status  # show applied/pending migrations
 ```
 
 **Adopting a pre-existing schema:** if a `students` table already exists (e.g. it was created manually, or by an app version that predates goose) and goose has no migration history yet, `cmd/migrate` ([cmd/migrate/main.go](cmd/migrate/main.go)) compares the existing table's `SHOW CREATE TABLE` output against migration `00001`. If they match, it marks `00001` as already applied instead of trying to recreate the table. If they don't match, it refuses to proceed and prints both schemas so you can reconcile them manually which acts as a safety check.
@@ -446,7 +570,7 @@ A ready-to-import collection lives at [postman/student-api.postman_collection.js
 2. The collection uses a `base_url` variable (defaults to `http://localhost:8888`).
 3. Requests are designed to run **top-to-bottom**: "Create Student" captures the new student's ID into a `student_id` collection variable, which later requests (Get/Update/Delete by ID) reuse. Running requests out of order or in isolation may cause the ID-dependent ones to fail.
 
-**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `npm install -g newman`, then:
+**Run headlessly with Newman** (useful in CI or without the Postman GUI). Install it once with `./scripts/install-prerequisites.sh` (or directly: `npm install -g newman`), then:
 
 ```bash
 make newman
@@ -461,7 +585,7 @@ Make sure the server is running (`make run`) before running the collection, whet
 ```bash
 make test
 # or
-go test ./...
+go test ./... -v
 ```
 
 **Docker must be running**. `TestMain` in [controllers_test/main_test.go](controllers_test/main_test.go) starts a single real MySQL 8 container (via Testcontainers) shared across every test in the package, and tears the container down after the suite finishes.
@@ -506,6 +630,8 @@ go test ./controllers_test/... -run TestStudentLifecycle_PersistsAcrossRealDB -v
 **Install it once:**
 
 ```bash
+./scripts/install-prerequisites.sh
+# or directly
 go install honnef.co/go/tools/cmd/staticcheck@latest
 ```
 
@@ -519,7 +645,7 @@ staticcheck ./...
 
 **Dockerfile linting.** [hadolint](https://github.com/hadolint/hadolint) catches Dockerfile issues like missed layer-consolidation opportunities, unpinned base images, and other common anti-patterns.
 
-**Install it once:** `brew install hadolint` (or see [hadolint's install docs](https://github.com/hadolint/hadolint#install) for other platforms).
+**Install it once:** `./scripts/install-prerequisites.sh` on macOS, or `brew install hadolint` directly (see [hadolint's install docs](https://github.com/hadolint/hadolint#install) for other platforms).
 
 **Run it:**
 
@@ -563,6 +689,9 @@ Documented in [.env.example](.env.example):
 | `GIN_MODE` | No | `debug` (Gin's own default) | Gin's runtime mode (`debug`/`release`/`test`). Set to `release` for production - see [main.go](main.go). |
 | `MYSQL_ROOT_PASSWORD` | Only for Docker | — | Consumed by the `mysql` container itself (via `docker-mysql-up`), not by the app. Ignored when running the app directly. |
 | `MYSQL_DATABASE` | Only for Docker | — | Same as above - the database the `mysql` container creates on first boot. |
+| `MYSQL_PORT` | No | `3306` | Only meaningful for Compose. Host port `mysql`'s `3306` is published on - override if something on your machine already listens on 3306. Doesn't affect `DSN`: other services always reach it as `student-mysql:3306` over the Docker network. |
+| `LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Path to also write logs to, in addition to stdout - see [main.go](main.go). Set to `/var/log/app/rest-api.log` to persist on the `student-logs` volume. |
+| `MIGRATE_LOG_FILE` | No | — (stdout only) | Only meaningful for the Docker workflow. Same as `LOG_FILE`, but for `cmd/migrate` - see [cmd/migrate/main.go](cmd/migrate/main.go). Set to `/var/log/app/migrate.log` to persist on the `student-migrate-logs` volume. |
 
 NOTE - `.env` is loaded automatically at startup and is gitignored. The same file is reused for both running the app directly and running it via Docker - see [Running with Docker](#running-with-docker) for what changes between the two.
 

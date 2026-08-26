@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,7 +19,19 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	// LOG_FILE points at a path on the student-logs volume, so logs survive
+	// `docker compose down` instead of being lost with the removed container.
+	// Still logs to stdout too, so `docker compose logs` keeps working live.
+	logWriter := io.Writer(os.Stdout)
+	if path := os.Getenv("LOG_FILE"); path != "" {
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			slog.Error("failed to open log file", "path", path, "error", err)
+			os.Exit(1)
+		}
+		logWriter = io.MultiWriter(os.Stdout, f)
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(logWriter, nil)))
 
 	// Reject unknown fields in JSON request bodies (e.g. a client trying to
 	// set gorm.Model's ID/CreatedAt/DeletedAt) instead of silently ignoring

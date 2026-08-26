@@ -1,0 +1,60 @@
+name: student-api
+
+networks:
+  net:
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: student-mysql
+    env_file: .env
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - student-mysql-data:/var/lib/mysql
+    networks:
+      - net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
+    container_name: student-migrate
+    env_file: .env
+    entrypoint: migrate
+    command: ["up"]
+    volumes:
+      - student-migrate-logs:/var/log/app
+    networks:
+      - net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  rest-api:
+    build: .
+    image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
+    container_name: student-rest-api
+    env_file: .env
+    environment:
+      - PORT=${PORT:-8888}
+    ports:
+      - "${PORT:-8888}:${PORT:-8888}"
+    volumes:
+      - student-logs:/var/log/app
+    networks:
+      - net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  student-mysql-data:
+  student-logs:
+  student-migrate-logs:

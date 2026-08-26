@@ -8,6 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func GetEnv(key string) string {
+	return os.Getenv(key)
+}
+
 // LoadConfig loads environment variables from a .env file in the working
 // directory, if one exists. A missing file is not an error - it just means
 // the caller is relying on the process's environment variables directly
