@@ -1,5 +1,6 @@
 .PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down
 
+
 IMAGE_NAME := student-rest-api
 # defaults to the current git version, but can be overridden on the command
 # line to build/tag a specific version instead, e.g.:
@@ -14,9 +15,13 @@ HOST_PORT := 8888
 # override on the command line to run down/status instead of up, e.g.:
 #   make docker-migrate MIGRATE_CMD=status
 MIGRATE_CMD := up
+# host port mysql's 3306 is published on - override if 3306 is already taken
+# on your machine, e.g.: make docker-mysql-up MYSQL_PORT=3307
+MYSQL_PORT := 3306
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
-# so no credential value ever appears in this committed Makefile.
+# so no credential value ever appears in this committed Makefile. Also picks
+# up MYSQL_PORT if set there, overriding the default above.
 -include .env
 
 deps:
@@ -60,19 +65,20 @@ fmt:
 		exit 1; \
 	fi
 
-# requires staticcheck - run ./scripts/install-tools.sh, or see it for the
-# manual install command.
+
+# requires staticcheck - run ./scripts/install-prerequisites.sh (macOS), or
+# see it for the manual install command.
 staticcheck:
 	staticcheck ./...
 
-# lints the Dockerfile - requires hadolint: brew install hadolint (or see
-# https://github.com/hadolint/hadolint#install)
+# lints the Dockerfile - requires hadolint: ./scripts/install-prerequisites.sh
+# (macOS), or brew install hadolint / https://github.com/hadolint/hadolint#install
 hadolint:
 	hadolint Dockerfile
 
 # runs the Postman collection against a running server (`make run` first).
-# requires newman - run ./scripts/install-tools.sh, or see it for the manual
-# install command.
+# requires newman - run ./scripts/install-prerequisites.sh (macOS), or see it
+# for the manual install command.
 newman:
 	newman run postman/student-api.postman_collection.json
 
@@ -120,7 +126,7 @@ docker-mysql-up: docker-network
 	docker run -d --name $(MYSQL_CONTAINER) \
 		--network $(NETWORK_NAME) \
 		-v student-mysql-data:/var/lib/mysql \
-		-p 3306:3306 \
+		-p $(MYSQL_PORT):3306 \
 		-e MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) \
 		-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
 		mysql:8.0
@@ -139,9 +145,16 @@ compose-up:
 	else \
 		echo "==> mysql is not running yet - compose will start it"; \
 	fi
-	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build
-	@echo "==> migration status (from the migrate service's own logs):"
-	@docker compose logs migrate --no-color | tail -n 3
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --build mysql migrate
+	@echo "==> waiting for migrate to finish..."
+	@migrate_exit="$$(docker wait student-migrate)"; \
+	echo "==> migration status (from the migrate service's own logs):"; \
+	docker compose logs migrate --no-color | tail -n 3; \
+	if [ "$$migrate_exit" != "0" ]; then \
+		echo "==> migrate failed (exit $$migrate_exit) - not starting rest-api" >&2; \
+		exit 1; \
+	fi
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose --env-file .env up -d --no-deps rest-api
 
 # runs a one-off migrate command via Compose (default: up), e.g.:
 #   make compose-migrate MIGRATE_CMD=status

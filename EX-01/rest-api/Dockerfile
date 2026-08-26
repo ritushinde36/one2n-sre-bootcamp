@@ -46,7 +46,7 @@ EXPOSE 8888
 # HEALTHCHECK failures are what an orchestrator restarts the container over,
 # and restarting rest-api can't fix a downed database.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://localhost:8888/healthcheck || exit 1
+  CMD wget -q -O /dev/null http://localhost:${PORT:-8888}/healthcheck || exit 1
 
 # Starts the API server - migrations are a separate one-off step run before
 # this container starts (see `make docker-migrate`), not done here on every
