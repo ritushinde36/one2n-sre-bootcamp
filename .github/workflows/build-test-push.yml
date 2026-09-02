@@ -35,7 +35,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: EX-01/rest-api/go.mod
-          cache-dependency-path: EX-01/rest-api/go.sum
+          cache: false
 
       - name: Build API
         run: make build
