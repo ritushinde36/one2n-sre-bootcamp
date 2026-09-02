@@ -76,4 +76,10 @@ jobs:
       - name: Docker push
         run: docker push "$IMAGE:$VERSION"
 
+      - name: Clean up old Docker images and build cache
+        if: always()
+        run: |
+          docker image prune -af --filter "until=24h"
+          docker builder prune -af --filter "until=24h"
+
 
