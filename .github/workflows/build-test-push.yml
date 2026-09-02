@@ -71,7 +71,7 @@ jobs:
           echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - name: Docker build
-        run: docker build -t "$IMAGE:$VERSION" .
+        run: make docker-build IMAGE_NAME="$IMAGE" VERSION="$VERSION"
 
       - name: Docker push
         run: docker push "$IMAGE:$VERSION"
