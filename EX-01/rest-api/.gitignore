@@ -3,3 +3,5 @@ bin/
 coverage.out
 logs/
 no-multi-stage-docker-file
+env
+README.orig.md
