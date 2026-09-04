@@ -5,3 +5,5 @@ coverage.out
 logs/
 no-multi-stage-docker-file
 .vagrant/
+env
+README.orig.md
