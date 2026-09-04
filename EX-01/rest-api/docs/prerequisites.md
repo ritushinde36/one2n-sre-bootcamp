@@ -14,6 +14,8 @@ This page lists what you need installed before you use this project. It covers r
 | `staticcheck` | Optional | Only for `make staticcheck` |
 | `newman` | Optional | Only for `make newman`. Also needs Node.js and npm. |
 | `hadolint` | Optional | Only for `make hadolint` |
+| [minikube](https://minikube.sigs.k8s.io/) | Yes, for Kubernetes | Needed to run a local cluster. See [Minikube Cluster](minikube.md). |
+| `kubectl` | Yes, for Kubernetes | Needed to interact with the cluster. See [Minikube Cluster](minikube.md). |
 
 On macOS, install everything above (skipping anything already present) with:
 
