@@ -35,6 +35,7 @@ Everything below is reference material for this project, grouped by when you wou
 | [Prerequisites](docs/prerequisites.md) | Tools you need before you start |
 | [Local Setup](docs/setup.md) | Setting up and running the app on your machine |
 | [Docker & Docker Compose](docs/docker.md) | Running the app in containers |
+| [Minikube Cluster](docs/minikube.md) | Setting up the local Kubernetes cluster |
 | [Environment Variables](docs/environment-variables.md) | Every `.env` key, what it does, and its default |
 | [Makefile Reference](docs/makefile.md) | Every `make` target, grouped by what it does |
 | [Database Migrations](docs/migrations.md) | Running migrations locally and in Docker |
