@@ -7,9 +7,9 @@
 # from Xcode's Command Line Tools on macOS.
 #
 # Run directly to install everything:
-#   ./scripts/install-prerequisites-macos.sh
+#   ./scripts/install-prerequisites.sh
 # Or source it to install just one:
-#   source scripts/install-prerequisites-macos.sh && install_docker
+#   source scripts/install-prerequisites.sh && install_docker
 set -uo pipefail
 
 ensure_homebrew() {
