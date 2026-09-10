@@ -2,9 +2,10 @@
 # macOS-only. Installs every tool needed to build, run, and test this app -
 # both the hard prerequisites (Go, MySQL, Docker, Git, Make) and the optional
 # dev tools some Makefile targets use (staticcheck, newman, hadolint), plus
-# newman's own transitive dependency (Node.js/npm). Skips anything already
-# on PATH. Installation goes through Homebrew, except make/git, which come
-# from Xcode's Command Line Tools on macOS.
+# newman's own transitive dependency (Node.js/npm) and the Kubernetes tools
+# (minikube, kubectl) needed to run the app on a local cluster. Skips
+# anything already on PATH. Installation goes through Homebrew, except
+# make/git, which come from Xcode's Command Line Tools on macOS.
 #
 # Run directly to install everything:
 #   ./scripts/install-prerequisites.sh
@@ -138,6 +139,24 @@ install_hadolint() {
 	brew install hadolint
 }
 
+install_minikube() {
+	if command -v minikube >/dev/null 2>&1; then
+		echo "minikube: already installed ($(command -v minikube))"
+		return 0
+	fi
+	echo "minikube: installing via brew..."
+	brew install minikube
+}
+
+install_kubectl() {
+	if command -v kubectl >/dev/null 2>&1; then
+		echo "kubectl: already installed ($(command -v kubectl))"
+		return 0
+	fi
+	echo "kubectl: installing via brew..."
+	brew install kubectl
+}
+
 # Only auto-run everything when executed directly, not when sourced - keeps
 # each function individually callable (e.g. from a fresh shell after sourcing).
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -157,5 +176,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	install_staticcheck || status=1
 	install_newman || status=1
 	install_hadolint || status=1
+	install_minikube || status=1
+	install_kubectl || status=1
 	exit "$status"
 fi

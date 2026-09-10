@@ -30,6 +30,7 @@ rest-api/
 │   ├── logging.md                           # Log format and sources
 │   ├── makefile.md                          # Every `make` target, grouped by what it does
 │   ├── migrations.md                        # Running migrations locally, in Docker, and in Compose
+│   ├── minikube.md                          # Setting up the local Kubernetes cluster
 │   ├── postman.md                           # Importing and running the collection, Newman
 │   ├── prerequisites.md                     # Tools you need before you start
 │   ├── project-structure.md                 # This page: the repo layout, file by file

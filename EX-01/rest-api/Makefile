@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down
 
 
 IMAGE_NAME := student-rest-api
@@ -167,3 +167,25 @@ compose-migrate:
 # stops and removes both containers (the student-mysql-data volume persists).
 compose-down:
 	docker compose --env-file .env down
+
+# same as compose-up, but via docker-compose.proxy.yml - builds the app image
+# and starts mysql/migrate/api-1/api-2/nginx, load-balancing across the two
+# api instances behind nginx on :8080.
+compose-proxy-up:
+	@if [ -n "$$(docker compose -f docker-compose.proxy.yml ps -q --status running mysql 2>/dev/null)" ]; then \
+		echo "==> mysql is already running"; \
+	else \
+		echo "==> mysql is not running yet - compose will start it"; \
+	fi
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose -f docker-compose.proxy.yml --env-file .env up -d --build
+	@echo "==> migration status (from the migrate service's own logs):"
+	@docker compose -f docker-compose.proxy.yml logs migrate --no-color | tail -n 3
+
+# runs a one-off migrate command via the proxy compose file (default: up),
+# e.g.: make compose-proxy-migrate MIGRATE_CMD=status
+compose-proxy-migrate:
+	IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) docker compose -f docker-compose.proxy.yml --env-file .env run --rm migrate $(MIGRATE_CMD)
+
+# stops and removes all proxy-stack containers (the student-mysql-data volume persists).
+compose-proxy-down:
+	docker compose -f docker-compose.proxy.yml --env-file .env down
