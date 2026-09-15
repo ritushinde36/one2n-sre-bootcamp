@@ -58,7 +58,7 @@ This downloads the `utm/debian11` box (first run only) and provisions it via [sc
 2. Renames `env` back to `.env`.
 3. Runs `make compose-proxy-up` to build the app image and start `mysql`, `migrate`, `api-1`, `api-2`, and `nginx`.
 
-**Manual UTM step:** the first time, UTM needs the project folder mounted as a Shared Directory with share mode set to `virtFS` - do this in the UTM app once the VM appears, before provisioning can reach `/vagrant`. Also watch for UTM permission pop-ups during boot; missing one can stall the VM.
+The [Vagrantfile](../Vagrantfile) shares the project folder into the VM automatically. You do not need to mount it by hand. During boot, UTM may show permission pop-ups. Approve them, or the VM can get stuck.
 
 **4. Verify.** From your host, once `vagrant up` finishes:
 
@@ -68,10 +68,11 @@ curl http://localhost:8080/healthcheck
 
 Run the [Postman collection](postman.md) against `http://localhost:8080` as `base_url` to confirm every endpoint returns 200 through nginx.
 
-**5. SSH into the VM:**
+**Other handy commands:**
 
 ```bash
-vagrant ssh
+vagrant ssh          # connect to the VM, for debugging
+vagrant provision    # re-run scripts/provision-vm.sh, without recreating the VM
 ```
 
 **Cleanup:**
@@ -81,13 +82,4 @@ vagrant halt      # stop the VM, keep it for next time
 vagrant destroy   # remove the VM entirely
 ```
 
-`vagrant destroy` removes the VM but not the UTM Shared Directory setting - re-mounting it is still a manual step the next time you `vagrant up` a fresh VM.
-
-## Troubleshooting
-
-| Issue | Solution |
-|---|---|
-| Port 8080 already in use on the host | Stop whatever else is bound to it; `vagrant up` won't fail loudly, but nginx won't be reachable. |
-| Files missing inside the VM / `/vagrant` looks empty | The UTM Shared Directory wasn't mounted, or wasn't set to `virtFS` mode. |
-| `.env` not found errors from Compose | Confirm you copied to `env` (no dot) before `vagrant up`, and that provisioning actually ran (check for the "Deploying the proxy stack" line in the `vagrant up` output). |
-| Download interrupted / box stuck | A flaky connection during the box download usually means restarting `vagrant up` from scratch rather than resuming. |
+See [Troubleshooting](troubleshooting.md) for common issues.
