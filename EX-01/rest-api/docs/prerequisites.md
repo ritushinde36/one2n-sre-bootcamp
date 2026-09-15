@@ -17,7 +17,7 @@ This page lists what you need installed before you use this project. It covers r
 | [minikube](https://minikube.sigs.k8s.io/) | Yes, for Kubernetes | Needed to run a local cluster. See [Minikube Cluster](minikube.md). |
 | `kubectl` | Yes, for Kubernetes | Needed to interact with the cluster. See [Minikube Cluster](minikube.md). |
 | [Vagrant](https://www.vagrantup.com/) | Yes, for the Vagrant VM | Needed to run the app in a VM via the [Vagrantfile](../Vagrantfile). |
-| [UTM](https://mac.getutm.app/) | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | Vagrant's usual provider, VirtualBox, doesn't support M-series chips - UTM is the substitute. Intel Macs should use Vagrant with VirtualBox instead. |
+| [UTM](https://mac.getutm.app/) | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | We use UTM as the Vagrant provider. |
 | `vagrant_utm` plugin | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | Community plugin that lets Vagrant drive UTM as a provider. |
 
 On macOS, install everything above (skipping anything already present) with:
