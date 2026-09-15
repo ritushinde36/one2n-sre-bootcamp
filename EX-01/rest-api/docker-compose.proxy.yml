@@ -13,7 +13,12 @@ services:
     networks:
       - net
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
+      # -h 127.0.0.1, not localhost: mysql's client treats "localhost" as a
+      # socket connection, which succeeds against the temporary init server
+      # before mysqld is actually listening on the network - other
+      # containers relying on depends_on/service_healthy would then see
+      # "connection refused" despite the healthcheck passing.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
       timeout: 5s
       retries: 10
