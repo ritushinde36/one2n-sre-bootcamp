@@ -14,4 +14,4 @@ This page lists common errors and how to fix them. Use it when something does no
 | Migration `up` fails with "refusing to proceed: pre-existing students table does not match migration 00001" | Compare the printed `existing` and `expected` DDL, and reconcile them by hand. The migration tool will not alter a mismatched table for you. |
 | Creating or updating a student returns 400, mentioning an unexpected field name (for example `id`, or `created_at`) | Remove that field. The API accepts only `name`, `email`, `age`, `class`, and `department`. |
 | (Vagrant VM) Port 8080 already in use on the host | Stop whatever else is bound to it; `vagrant up` won't fail loudly, but nginx won't be reachable. |
-| (Vagrant VM) `.env` not found errors from Compose | Confirm you copied to `env` (no dot) before `vagrant up`, and that provisioning actually ran (check for the "Deploying the proxy stack" line in the `vagrant up` output). |
+| (Vagrant VM) `.env` not found errors from Compose | Confirm `.env` exists before `vagrant up`, and that provisioning actually ran (check for the "Deploying the proxy stack" line in the `vagrant up` output). |

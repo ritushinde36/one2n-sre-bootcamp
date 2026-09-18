@@ -35,9 +35,6 @@ docker --version
 docker compose version
 
 cd /vagrant
-if [ -f env ] && [ ! -f .env ]; then
-	mv env .env
-fi
 
 echo "==> Deploying the proxy stack (mysql/migrate/api-1/api-2/nginx)..."
 make compose-proxy-up
