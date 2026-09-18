@@ -13,11 +13,6 @@ services:
     networks:
       - net
     healthcheck:
-      # -h 127.0.0.1, not localhost: mysql's client treats "localhost" as a
-      # socket connection, which succeeds against the temporary init server
-      # before mysqld is actually listening on the network - other
-      # containers relying on depends_on/service_healthy would then see
-      # "connection refused" despite the healthcheck passing.
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
       timeout: 5s
@@ -91,6 +86,7 @@ services:
       - "8080:8080"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - student-nginx-logs:/var/log/nginx-persist
     networks:
       - net
     depends_on:
@@ -104,3 +100,4 @@ volumes:
   student-migrate-logs:
   student-api-1-logs:
   student-api-2-logs:
+  student-nginx-logs:
