@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down
 
 
 IMAGE_NAME := student-rest-api
@@ -81,6 +81,12 @@ hadolint:
 # for the manual install command.
 newman:
 	newman run postman/student-api.postman_collection.json
+
+# runs the Postman collection against the Vagrant VM (`vagrant up` first).
+# the environment file points base_url at nginx on port 8080, instead of the
+# collection's own 8888. see docs/vagrant.md.
+newman-vagrant:
+	newman run postman/student-api.postman_collection.json -e postman/vagrant.postman_environment.json
 
 migrate-up:
 	go run ./cmd/migrate up
