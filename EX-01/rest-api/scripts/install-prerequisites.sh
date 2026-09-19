@@ -2,9 +2,13 @@
 # macOS-only. Installs every tool needed to build, run, and test this app -
 # both the hard prerequisites (Go, MySQL, Docker, Git, Make) and the optional
 # dev tools some Makefile targets use (staticcheck, newman, hadolint), plus
-# newman's own transitive dependency (Node.js/npm). Skips anything already
-# on PATH. Installation goes through Homebrew, except make/git, which come
-# from Xcode's Command Line Tools on macOS.
+# newman's own transitive dependency (Node.js/npm), the Kubernetes tools
+# (minikube, kubectl) needed to run the app on a local cluster, and Vagrant
+# (plus UTM and the vagrant_utm plugin, on Apple Silicon (M-series) Macs only
+# - VirtualBox, Vagrant's usual provider, doesn't support M-series chips)
+# needed to run the app in a VM. Skips anything already on PATH. Installation
+# goes through Homebrew, except make/git, which come from Xcode's Command
+# Line Tools on macOS.
 #
 # Run directly to install everything:
 #   ./scripts/install-prerequisites.sh
@@ -138,6 +142,67 @@ install_hadolint() {
 	brew install hadolint
 }
 
+install_minikube() {
+	if command -v minikube >/dev/null 2>&1; then
+		echo "minikube: already installed ($(command -v minikube))"
+		return 0
+	fi
+	echo "minikube: installing via brew..."
+	brew install minikube
+}
+
+install_kubectl() {
+	if command -v kubectl >/dev/null 2>&1; then
+		echo "kubectl: already installed ($(command -v kubectl))"
+		return 0
+	fi
+	echo "kubectl: installing via brew..."
+	brew install kubectl
+}
+
+install_vagrant() {
+	if command -v vagrant >/dev/null 2>&1; then
+		echo "vagrant: already installed ($(command -v vagrant))"
+		return 0
+	fi
+	echo "vagrant: installing via brew..."
+	brew tap hashicorp/tap
+	brew install hashicorp/tap/hashicorp-vagrant
+}
+
+# UTM/vagrant_utm are only needed on Apple Silicon (M-series) Macs: VirtualBox,
+# Vagrant's usual provider, doesn't support M-series chips. Intel Macs should
+# use Vagrant with VirtualBox instead - not covered by this script.
+install_utm() {
+	if [[ "$(uname -m)" != "arm64" ]]; then
+		echo "utm: skipped - only needed on Apple Silicon (M-series) Macs; use VirtualBox with Vagrant on Intel" >&2
+		return 0
+	fi
+	if command -v utm >/dev/null 2>&1 || [ -d "/Applications/UTM.app" ]; then
+		echo "utm: already installed"
+		return 0
+	fi
+	echo "utm: installing via brew cask (Apple Silicon only)..."
+	brew install --cask utm
+}
+
+install_vagrant_utm_plugin() {
+	if [[ "$(uname -m)" != "arm64" ]]; then
+		echo "vagrant_utm plugin: skipped - only needed on Apple Silicon (M-series) Macs; use VirtualBox with Vagrant on Intel" >&2
+		return 0
+	fi
+	if ! command -v vagrant >/dev/null 2>&1; then
+		echo "vagrant_utm plugin: skipped - vagrant is required first" >&2
+		return 1
+	fi
+	if vagrant plugin list 2>/dev/null | grep -q '^vagrant_utm '; then
+		echo "vagrant_utm plugin: already installed"
+		return 0
+	fi
+	echo "vagrant_utm plugin: installing (Apple Silicon only)..."
+	vagrant plugin install vagrant_utm
+}
+
 # Only auto-run everything when executed directly, not when sourced - keeps
 # each function individually callable (e.g. from a fresh shell after sourcing).
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -157,5 +222,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	install_staticcheck || status=1
 	install_newman || status=1
 	install_hadolint || status=1
+	install_minikube || status=1
+	install_kubectl || status=1
+	install_vagrant || status=1
+	install_utm || status=1
+	install_vagrant_utm_plugin || status=1
 	exit "$status"
 fi

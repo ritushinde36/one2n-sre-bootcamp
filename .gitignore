@@ -1,0 +1,6 @@
+# Postman VS Code extension's local sync metadata (maps a local postman/
+# folder to a Postman Cloud workspace) - machine-local, not project content.
+.postman/
+
+# macOS Finder metadata
+.DS_Store

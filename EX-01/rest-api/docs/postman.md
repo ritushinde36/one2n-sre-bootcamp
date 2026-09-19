@@ -21,3 +21,26 @@ newman run postman/student-api.postman_collection.json
 ```
 
 Make sure the server is running (`make run`) before running the collection, whether via the Postman GUI or Newman.
+
+## Running against the Vagrant VM
+
+The [Vagrant VM](vagrant.md) serves the API through nginx on port 8080. The collection sets `base_url` to port 8888, so it does not reach the VM.
+
+Do not edit `base_url`. Use the environment file at [postman/vagrant.postman_environment.json](../postman/vagrant.postman_environment.json) instead. It sets `base_url` to `http://localhost:8080`. An environment variable overrides a collection variable with the same name, so one collection works against both setups.
+
+**In Postman:**
+
+1. Click **Import**. Select `postman/vagrant.postman_environment.json`.
+2. Look under **Environments** in the left sidebar. The file appears there as "Vagrant VM".
+3. Select **Vagrant VM** and set it as **active**
+4. Run the collection.
+
+To confirm the environment is active, hold the pointer over `{{base_url}}` in any request. The tooltip shows `http://localhost:8080`.
+
+**With Newman:**
+
+```bash
+make newman-vagrant
+# or directly
+newman run postman/student-api.postman_collection.json -e postman/vagrant.postman_environment.json
+```
