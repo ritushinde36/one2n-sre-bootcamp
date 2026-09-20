@@ -30,56 +30,116 @@ Note: **this page is for Apple Silicon (M-series) Macs.** The [Vagrantfile](../V
 - Both containers talk to the same shared `mysql` container.
 - A one-shot `migrate` container applies schema migrations before either API container starts.
 
-See [docker-compose.proxy.yml](../docker-compose.proxy.yml) and [nginx/default.conf](../nginx/default.conf) for the exact definitions, and [Architecture](architecture.md) for how the API talks to MySQL.
+See [Architecture](architecture.md) for how the API talks to MySQL.
+
+## Files
+
+These files define the VM and the containers inside it. The table lists them in the order that `vagrant up` uses them.
+
+| File | What it does |
+| --- | --- |
+| [Vagrantfile](../Vagrantfile) | Defines the VM and forwards host port 8080 to it. |
+| [scripts/provision-vm.sh](../scripts/provision-vm.sh) | Installs Docker inside the VM and starts the container stack. |
+| [Makefile](../Makefile) | Holds the `vagrant-*` targets and the `compose-proxy-up` target that provisioning calls. |
+| [docker-compose.proxy.yml](../docker-compose.proxy.yml) | Defines the five containers: `mysql`, `migrate`, `api-1`, `api-2`, and `nginx`. |
+| [Dockerfile](../Dockerfile) | Builds the application image that the migrate and API containers use. |
+| [nginx/default.conf](../nginx/default.conf) | Configures nginx to listen on port 8080 and load-balance the two API containers. |
+| [postman/vagrant.postman_environment.json](../postman/vagrant.postman_environment.json) | Points the Postman collection at port 8080, instead of the collection's own port 8888. |
+| `logs/provision-vm-*.log` | Holds the output of each provisioning run, on the host. |
 
 ## Running the VM
 
-**1. Install prerequisites.** You need Vagrant, UTM, and the `vagrant_utm` plugin. Run `./scripts/install-prerequisites.sh` to install all three on Apple Silicon. See [Prerequisites](prerequisites.md) for details.
-
-**2. Configure the environment.** Copy the example env file, same as for [Local Setup](setup.md) or [Docker & Docker Compose](docker.md):
+**1. Install prerequisites.** Run the script that installs every dependency:
 
 ```bash
-cp .env.example env
+./scripts/install-prerequisites.sh
 ```
 
-Note the filename: `env`, not `.env`. UTM's Shared Directory doesn't expose dotfiles to the guest, so the file has to be renamed to be visible inside the VM. `scripts/provision-vm.sh` renames it back to `.env` once it's inside the VM, before running Compose.
+See [Prerequisites](prerequisites.md) for details.
 
-For this VM-hosted deployment, keep `DSN`'s host as `student-mysql` (the containers all run inside the VM, on the same Docker network - this matches the Docker workflow, not the local one).
-
-**3. Bring up the VM:**
+**2. Configure the environment.** Copy the example env file:
 
 ```bash
-vagrant up
+cp .env.example .env
 ```
 
-This downloads the `utm/debian11` box (first run only) and provisions it via [scripts/provision-vm.sh](../scripts/provision-vm.sh), which:
+Keep `DSN`'s host as `student-mysql`.
 
-1. Installs Docker and the `docker compose` CLI plugin.
-2. Renames `env` back to `.env`.
-3. Runs `make compose-proxy-up` to build the app image and start `mysql`, `migrate`, `api-1`, `api-2`, and `nginx`.
+**3. Start the VM:**
 
-The [Vagrantfile](../Vagrantfile) shares the project folder into the VM automatically. You do not need to mount it by hand. During boot, UTM may show permission pop-ups. Approve them, or the VM can get stuck.
+```bash
+make vagrant-up
+```
 
-**4. Verify.** From your host, once `vagrant up` finishes:
+The [Vagrantfile](../Vagrantfile) shares the project folder into the VM automatically.
+
+**4. Verify.** From your host, once `make vagrant-up` finishes:
 
 ```bash
 curl http://localhost:8080/healthcheck
 ```
 
-Run the [Postman collection](postman.md) against `http://localhost:8080` as `base_url` to confirm every endpoint returns 200 through nginx.
+To test every endpoint through nginx, see [Running against the Vagrant VM](postman.md#running-against-the-vagrant-vm) in the Postman docs.
 
 **Other handy commands:**
 
 ```bash
-vagrant ssh          # connect to the VM, for debugging
-vagrant provision    # re-run scripts/provision-vm.sh, without recreating the VM
+make vagrant-status      # show whether the VM is running
+make vagrant-ssh         # connect to the VM, for debugging
+make vagrant-provision   # re-run scripts/provision-vm.sh, without recreating the VM
 ```
 
 **Cleanup:**
 
 ```bash
-vagrant halt      # stop the VM, keep it for next time
-vagrant destroy   # remove the VM entirely
+make vagrant-halt      # stop the VM, keep it for next time
+make vagrant-destroy   # remove the VM entirely
 ```
+
+## Reading nginx logs
+
+nginx writes its access log and its error log to two places:
+
+- **stdout and stderr**, which `docker logs` reads. These logs disappear with the container.
+- **The `student-nginx-logs` volume**, mounted at `/var/log/nginx-persist`. These logs stay after the container is removed.
+
+The access log is JSON, in the `upstreamlog` format that [nginx/default.conf](../nginx/default.conf) defines.
+
+Both places are inside the VM, so connect to it first:
+
+```bash
+make vagrant-ssh
+cd /vagrant
+```
+
+**Read the live logs** of the running container:
+
+```bash
+docker compose -f docker-compose.proxy.yml logs -f nginx
+```
+
+**Read the volume** with a disposable container. This works even after `make compose-proxy-down` removes the nginx container:
+
+```bash
+docker run --rm -v student-api-proxy_student-nginx-logs:/logs alpine cat /logs/access.log
+docker run --rm -v student-api-proxy_student-nginx-logs:/logs alpine cat /logs/error.log
+```
+
+**Read the files in the running container** instead:
+
+```bash
+docker exec student-nginx cat /var/log/nginx-persist/access.log
+```
+
+Compose adds its project name, `student-api-proxy_`, in front of every volume name. The other containers in the stack use the same pattern:
+
+| Container | Volume | Path inside the container |
+| --- | --- | --- |
+| `nginx` | `student-api-proxy_student-nginx-logs` | `/var/log/nginx-persist` |
+| `api-1` | `student-api-proxy_student-api-1-logs` | `/var/log/app` |
+| `api-2` | `student-api-proxy_student-api-2-logs` | `/var/log/app` |
+| `migrate` | `student-api-proxy_student-migrate-logs` | `/var/log/app` |
+
+Note: these volumes are inside the VM. `make vagrant-halt` keeps them, but `make vagrant-destroy` deletes them with the VM disk. Copy any log you need to `/vagrant` first, because that folder is on the host.
 
 See [Troubleshooting](troubleshooting.md) for common issues.
