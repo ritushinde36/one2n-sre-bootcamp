@@ -4,6 +4,20 @@
 # API is reachable on the forwarded port (8080).
 set -euo pipefail
 
+# Vagrant only streams provisioner output to the terminal running `vagrant up`,
+# so it is lost once that scrollback is gone. Send a copy to a timestamped file
+# under the synced folder instead: /vagrant is the host's rest-api directory, so
+# the log lands on the host, survives `vagrant destroy`, and is already covered
+# by logs/ in .gitignore. `exec` with only redirections rebinds this script's
+# own stdout/stderr for the rest of the run, and tee keeps the output streaming
+# to Vagrant as well. Timestamps are UTC (the VM's clock), not host local time.
+LOG_DIR=/vagrant/logs
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/provision-vm-$(date -u +%Y%m%d-%H%M%S).log"
+exec > >(tee "$LOG_FILE") 2>&1
+echo "==> Provisioning started at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "==> Logging to $LOG_FILE (host: EX-01/rest-api/logs/)"
+
 # The utm/debian11 box runs bullseye (Debian 11), which is now EOL. Once a
 # release goes EOL, deb.debian.org stops reliably serving it - point apt at
 # archive.debian.org instead, which permanently freezes its packages in
