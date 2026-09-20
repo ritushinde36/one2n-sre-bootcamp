@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy
 
 
 IMAGE_NAME := student-rest-api
@@ -82,7 +82,7 @@ hadolint:
 newman:
 	newman run postman/student-api.postman_collection.json
 
-# runs the Postman collection against the Vagrant VM (`vagrant up` first).
+# runs the Postman collection against the Vagrant VM (`make vagrant-up` first).
 # the environment file points base_url at nginx on port 8080, instead of the
 # collection's own 8888. see docs/vagrant.md.
 newman-vagrant:
@@ -195,3 +195,38 @@ compose-proxy-migrate:
 # stops and removes all proxy-stack containers (the student-mysql-data volume persists).
 compose-proxy-down:
 	docker compose -f docker-compose.proxy.yml --env-file .env down
+
+# creates the VM and provisions it via scripts/provision-vm.sh, which installs
+# Docker and brings up the proxy stack inside the VM - so the API ends up on
+# localhost:8080 through the Vagrantfile's forwarded port. Only provisions on
+# first create; use vagrant-provision afterwards. Requires vagrant, and on
+# Apple Silicon also UTM and the vagrant_utm plugin - see
+# ./scripts/install-prerequisites.sh. See docs/vagrant.md.
+vagrant-up:
+	vagrant up
+
+# re-runs scripts/provision-vm.sh against the existing VM without recreating
+# it. Safe to run repeatedly: the apt source edits are idempotent, mkdir -p
+# tolerates existing directories, and compose up converges rather than
+# duplicating containers.
+vagrant-provision:
+	vagrant provision
+
+# reports whether the VM is running, poweroff, or not created yet.
+vagrant-status:
+	vagrant status
+
+# opens a shell in the VM. This directory is mounted there at /vagrant.
+vagrant-ssh:
+	vagrant ssh
+
+# powers the VM off but keeps its disk, so vagrant-up restarts it with the
+# containers and mysql data intact - and without re-provisioning.
+vagrant-halt:
+	vagrant halt
+
+# deletes the VM and its disk, including the docker volumes inside it (mysql
+# data, nginx logs). Prompts for confirmation. Provisioning logs survive -
+# they're written to logs/ on the host through the synced folder.
+vagrant-destroy:
+	vagrant destroy
