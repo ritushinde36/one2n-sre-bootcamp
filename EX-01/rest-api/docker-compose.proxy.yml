@@ -12,6 +12,11 @@ services:
       - student-mysql-data:/var/lib/mysql
     networks:
       - net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 768M
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
@@ -29,6 +34,11 @@ services:
       - student-migrate-logs:/var/log/app
     networks:
       - net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
     depends_on:
       mysql:
         condition: service_healthy
@@ -44,6 +54,11 @@ services:
       - student-api-1-logs:/var/log/app
     networks:
       - net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
     depends_on:
       mysql:
         condition: service_healthy
@@ -67,6 +82,11 @@ services:
       - student-api-2-logs:/var/log/app
     networks:
       - net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
     depends_on:
       mysql:
         condition: service_healthy
@@ -89,6 +109,11 @@ services:
       - student-nginx-logs:/var/log/nginx-persist
     networks:
       - net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 64M
     depends_on:
       api-1:
         condition: service_healthy
