@@ -5,4 +5,4 @@ postman/
 *.md
 .git
 .gitignore
-env
+.vagrant/

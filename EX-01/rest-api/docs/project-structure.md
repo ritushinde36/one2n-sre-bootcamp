@@ -8,14 +8,16 @@ This page shows the layout of this repository. It explains what each file and fo
 rest-api/
 ├── README.md                      # Entry point: quick start plus links to every page below
 ├── main.go                        # Application entry point: config, database connect, routes, graceful shutdown
-├── Makefile                       # build, run, test, migrate-*, docker-*, and compose-* targets
+├── Makefile                       # build, run, test, migrate-*, docker-*, compose-*, and vagrant-* targets
 ├── go.mod, go.sum                 # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables, used both locally and for Docker
 ├── .gitignore                     # Files and folders excluded from version control
 ├── Dockerfile                     # Multi-stage build for the app image (see docs/docker.md)
 ├── docker-entrypoint.sh           # Image entrypoint: execs into rest-api (migrations run separately, see docs/docker.md)
 ├── docker-compose.yml             # Compose setup: mysql, migrate, and rest-api services (see docs/docker.md)
+├── docker-compose.proxy.yml       # Compose setup with nginx in front of two API containers (see docs/vagrant.md)
 ├── .dockerignore                  # Excludes tests, docs, and env files from the Docker build context
+├── Vagrantfile                    # Defines the UTM-backed VM and forwards port 8080 (see docs/vagrant.md)
 │
 ├── docs/                          # This documentation, one focused page per topic
 │   ├── api-reference.md                     # Endpoints, request/response formats, pagination, status codes
@@ -36,10 +38,15 @@ rest-api/
 │   ├── setup.md                             # Setting up and running the app on your machine
 │   ├── tech-stack.md                        # Libraries and tools, by concern
 │   ├── testing.md                           # Running tests and code quality checks
-│   └── troubleshooting.md                   # Common errors and fixes
+│   ├── troubleshooting.md                   # Common errors and fixes
+│   └── vagrant.md                           # Deploying on bare metal in a Vagrant VM
 │
 ├── scripts/
-│   └── install-prerequisites.sh   # Installs everything in Prerequisites if missing (macOS only)
+│   ├── install-prerequisites.sh   # Installs everything in Prerequisites if missing (macOS only)
+│   └── provision-vm.sh            # Runs inside the VM: installs Docker, starts the proxy stack
+│
+├── nginx/
+│   └── default.conf               # Reverse proxy config: load balancing and the JSON access log
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv
@@ -73,5 +80,6 @@ rest-api/
 │   └── student_lifecycle_test.go       # End-to-end create→read→update→read→delete→read flow
 │
 └── postman/
-    └── student-api.postman_collection.json  # Importable Postman collection (see docs/postman.md)
+    ├── student-api.postman_collection.json  # Importable Postman collection (see docs/postman.md)
+    └── vagrant.postman_environment.json     # Points the collection at the Vagrant VM on port 8080
 ```
