@@ -7,6 +7,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: student-mysql
+    restart: always
     env_file: .env
     volumes:
       - student-mysql-data:/var/lib/mysql
@@ -27,6 +28,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-migrate
+    restart: on-failure:3
     env_file: .env
     entrypoint: migrate
     command: ["up"]
@@ -47,6 +49,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-api-1
+    restart: always
     env_file: .env
     environment:
       PORT: 8081
@@ -75,6 +78,7 @@ services:
     build: .
     image: ${IMAGE_NAME:-student-rest-api}:${VERSION:-latest}
     container_name: student-api-2
+    restart: always
     env_file: .env
     environment:
       PORT: 8082
@@ -102,6 +106,7 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: student-nginx
+    restart: always
     ports:
       - "8080:8080"
     volumes:
