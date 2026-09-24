@@ -1,16 +1,20 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "utm/debian11"
-  # Set VM properties for UTM
-  config.vm.provider "utm" do |u|
-    u.name = "debian_vm"
-    u.memory = "2048"  
-    u.cpus = 4          # 4 CPUs
-    u.directory_share_mode = "virtFS"
+  config.vm.define "bare-metal-vm" do |bare_metal_vm|
+    bare_metal_vm.vm.box = "utm/debian11"
+    bare_metal_vm.vm.hostname = "bare-metal-vm"
+
+    # Set VM properties for UTM
+    bare_metal_vm.vm.provider "utm" do |u|
+      u.name = "bare-metal-vm"
+      u.memory = "2048"
+      u.cpus = 4          # 4 CPUs
+      u.directory_share_mode = "virtFS"
+    end
+
+    # Provisioning all requirements using a shell script
+    bare_metal_vm.vm.provision "shell", path: "scripts/provision-vm.sh"
+
+    # Forward port 8080 from the VM to the host for NGINX access
+    bare_metal_vm.vm.network "forwarded_port", guest: 8080, host: 8080
   end
-
-  # Provisioning all requirements using a shell script
-  config.vm.provision "shell", path: "scripts/provision-vm.sh"
-
-  # Forward port 8080 from the VM to the host for NGINX access
-  config.vm.network "forwarded_port", guest: 8080, host: 8080
 end

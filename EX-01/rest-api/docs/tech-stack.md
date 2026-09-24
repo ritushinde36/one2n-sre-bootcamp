@@ -15,6 +15,9 @@ This page lists the libraries and tools this project uses. It groups them by wha
 | Test assertions | [stretchr/testify](https://github.com/stretchr/testify) |
 | Test infrastructure | [testcontainers-go](https://github.com/testcontainers/testcontainers-go) |
 | Containerization | [Docker](https://www.docker.com/) (multi-stage [Dockerfile](../Dockerfile)) |
-| Container orchestration (local) | [Docker Compose](https://docs.docker.com/compose/) ([docker-compose.yml](../docker-compose.yml)) |
+| Container orchestration (local) | [Docker Compose](https://docs.docker.com/compose/) ([docker-compose.yml](../docker-compose.yml), [docker-compose.proxy.yml](../docker-compose.proxy.yml)) |
+| Reverse proxy and load balancer | [nginx](https://nginx.org/) ([nginx/default.conf](../nginx/default.conf)) |
+| VM management | [Vagrant](https://www.vagrantup.com/) ([Vagrantfile](../Vagrantfile)) |
+| VM provider (Apple Silicon) | [UTM](https://mac.getutm.app/), through the `vagrant_utm` plugin |
 
 Go version: see [go.mod](../go.mod) (currently 1.26.5).

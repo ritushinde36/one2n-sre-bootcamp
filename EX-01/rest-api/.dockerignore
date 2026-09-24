@@ -1,9 +1,8 @@
 .env
-env
 bin/
 controllers_test/
 postman/
 *.md
 .git
 .gitignore
-env
+.vagrant/
