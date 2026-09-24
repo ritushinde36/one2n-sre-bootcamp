@@ -149,6 +149,18 @@ The CI pipeline builds and pushes it on every merge, tagged with the Git version
 
 To deploy a different build, change the tag in [application.yml](../manifests/application.yml) — it appears twice, once for the init container and once for the API container. Both must match, or migrations run on a different version from the app.
 
+## Coming back to an existing cluster
+
+Start the cluster again:
+
+```bash
+minikube start
+```
+
+**Then unseal Vault.** It seals itself every time its pod stops, and nothing does it for you. The app will appear to work without this, because the Kubernetes Secrets it already holds survive — so the problem stays hidden until a pod restarts and cannot find its credentials.
+
+See [After a restart](secrets-management.md#after-a-restart--unseal-vault) for the commands. You need three of the five unseal keys from when you first set Vault up.
+
 ## Day-to-day commands
 
 | Command | What it does |
