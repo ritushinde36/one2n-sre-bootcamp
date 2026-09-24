@@ -14,8 +14,9 @@ This page lists what you need installed before you use this project. It covers r
 | `staticcheck` | Optional | Only for `make staticcheck` |
 | `newman` | Optional | Only for `make newman`. Also needs Node.js and npm. |
 | `hadolint` | Optional | Only for `make hadolint` |
-| [minikube](https://minikube.sigs.k8s.io/) | Yes, for Kubernetes | Needed to run a local cluster. |
-| `kubectl` | Yes, for Kubernetes | Needed to interact with the cluster. |
+| [minikube](https://minikube.sigs.k8s.io/) | Yes, for Kubernetes | Needed to run a local cluster. See [Minikube Cluster](minikube.md). |
+| `kubectl` | Yes, for Kubernetes | Needed to interact with the cluster. See [Minikube Cluster](minikube.md). |
+| [helm](https://helm.sh/) | Yes, for Kubernetes | Installs Vault and the External Secrets Operator. See [Secrets Management](secrets-management.md). |
 | [Vagrant](https://www.vagrantup.com/) | Yes, for the Vagrant VM | Needed to run the app in a VM via the [Vagrantfile](../Vagrantfile). |
 | [UTM](https://mac.getutm.app/) | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | We use UTM as the Vagrant provider. |
 | `vagrant_utm` plugin | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | Community plugin that lets Vagrant drive UTM as a provider. |
