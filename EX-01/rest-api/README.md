@@ -11,6 +11,7 @@ A Golang-based REST API for managing student records, with built-in testing, con
    - Directly on your machine. See [Local Setup](docs/setup.md).
    - In a container. See [Docker & Docker Compose](docs/docker.md).
    - In a Vagrant VM. See [Vagrant VM](docs/vagrant.md).
+   - On a Kubernetes cluster. See [Minikube Cluster](docs/minikube.md).
 3. Explore the available endpoints. See [API Reference](docs/api-reference.md).
 
 ----
@@ -37,6 +38,8 @@ Everything below is reference material for this project, grouped by when you wou
 | [Local Setup](docs/setup.md) | Setting up and running the app on your machine |
 | [Docker & Docker Compose](docs/docker.md) | Running the app in containers |
 | [Vagrant VM](docs/vagrant.md) | Deploying on bare metal in a Vagrant VM |
+| [Minikube Cluster](docs/minikube.md) | Running the app on a local Kubernetes cluster |
+| [Secrets Management](docs/secrets-management.md) | Vault and External Secrets for the Kubernetes deployment |
 | [Environment Variables](docs/environment-variables.md) | Every `.env` key, what it does, and its default |
 | [Makefile Reference](docs/makefile.md) | Every `make` target, grouped by what it does |
 | [Database Migrations](docs/migrations.md) | Running migrations locally and in Docker |
