@@ -88,6 +88,20 @@ These targets control the VM from your Mac. See [Vagrant VM](vagrant.md) for the
 | `make vagrant-halt` | Stops the VM but keeps its disk, so the next `vagrant-up` is fast |
 | `make vagrant-destroy` | Deletes the VM and its disk, after a confirmation prompt |
 
+## Kubernetes
+
+These targets run against a local minikube cluster. See [Minikube Cluster](minikube.md) for the full workflow, and [Secrets Management](secrets-management.md) for the Vault setup that `k8s-deploy` depends on.
+
+| Command | What it does |
+|---|---|
+| `make k8s-cluster-up` | Creates the 4-node cluster and labels each worker by role |
+| `make k8s-deploy` | Applies the database and application manifests |
+| `make k8s-status` | Shows the pods and whether the external secrets synced |
+| `make k8s-port-forward` | Opens `localhost:8888` onto the API (blocks — run in its own terminal) |
+| `make k8s-logs` | Tails the API logs (`MIGRATE_LOGS=1` for the migration output) |
+| `make k8s-down` | Removes the app and database, keeps the cluster |
+| `make k8s-cluster-down` | Deletes the whole cluster |
+
 ## Overridable Variables
 
 You can override some target variables on the command line, as `make <target> VARIABLE=value`.
@@ -100,5 +114,7 @@ You can override some target variables on the command line, as `make <target> VA
 | `APP_CONTAINER` | `student-rest-api` | `docker-run`, `docker-down` | `make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882` |
 | `MYSQL_PORT` | `3306` | `docker-mysql-up` | `make docker-mysql-up MYSQL_PORT=3307` |
 | `MIGRATE_CMD` | `up` | `docker-migrate`, `compose-migrate`, `compose-proxy-migrate` | `make docker-migrate MIGRATE_CMD=status` |
+| `K8S_NAMESPACE` | `student-api` | every `k8s-*` target | `make k8s-status K8S_NAMESPACE=other` |
+| `MIGRATE_LOGS` | unset | `k8s-logs` | `make k8s-logs MIGRATE_LOGS=1` |
 
 `compose-up` reads its own overridable variables (`PORT`, `MYSQL_PORT`, `IMAGE_NAME`, `VERSION`) from `.env` or the command line. See [Docker & Docker Compose](docker.md) for details.
