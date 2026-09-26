@@ -32,9 +32,11 @@ rest-api/
 │   ├── logging.md                           # Log format and sources
 │   ├── makefile.md                          # Every `make` target, grouped by what it does
 │   ├── migrations.md                        # Running migrations locally, in Docker, and in Compose
+│   ├── minikube.md                          # Running the app on a local Kubernetes cluster
 │   ├── postman.md                           # Importing and running the collection, Newman
 │   ├── prerequisites.md                     # Tools you need before you start
 │   ├── project-structure.md                 # This page: the repo layout, file by file
+│   ├── secrets-management.md                # Vault and External Secrets for the Kubernetes deployment
 │   ├── setup.md                             # Setting up and running the app on your machine
 │   ├── tech-stack.md                        # Libraries and tools, by concern
 │   ├── testing.md                           # Running tests and code quality checks
@@ -47,6 +49,13 @@ rest-api/
 │
 ├── nginx/
 │   └── default.conf               # Reverse proxy config: load balancing and the JSON access log
+│
+├── manifests/                     # Kubernetes deployment (see docs/minikube.md)
+│   ├── application.yml            # Namespace, config, external secret, API deployment with migration init container, NodePort service
+│   ├── database.yml               # Config, external secret, 2Gi volume claim, MySQL deployment and service
+│   ├── secret-store.yml           # ClusterSecretStore pointing the External Secrets Operator at Vault
+│   └── values/
+│       └── vault-values.yaml      # Helm values for Vault: standalone mode, pinned to the dependent_services node
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv

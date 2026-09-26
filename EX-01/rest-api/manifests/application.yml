@@ -1,0 +1,114 @@
+# Student REST API. Everything this component needs lives in this one file:
+# namespace, config, secret, workload (with a migration init container), and
+# service. Namespace is declared here rather than database.yml because
+# "application.yml" sorts first alphabetically - `kubectl apply -f manifests/`
+# processes files in that order, so the namespace exists before anything else
+# needs it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: student-api
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: student-api
+data:
+  PORT: "8888"
+  GIN_MODE: "release"
+---
+# Synced from Vault by the External Secrets Operator - see
+# manifests/secret-store.yml and docs/secrets-management.md. This object
+# only points at the real secret; it never holds the DSN itself. The DSN
+# value stored in Vault must already point at mysql.student-api.svc's
+# cluster DNS name, not localhost or a Docker network name.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: app-secret
+  namespace: student-api
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: app-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: DSN
+      remoteRef:
+        key: student-api
+        property: DSN
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rest-api
+  namespace: student-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rest-api
+  template:
+    metadata:
+      labels:
+        app: rest-api
+    spec:
+      nodeSelector:
+        type: application
+      initContainers:
+        - name: migrate
+          image: ghcr.io/ritushinde36/student-rest-api:v0.4.5-6-gf42a581
+          imagePullPolicy: IfNotPresent
+          command: ["migrate"]
+          args: ["up"]
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secret
+      containers:
+        - name: rest-api
+          image: ghcr.io/ritushinde36/student-rest-api:v0.4.5-6-gf42a581
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8888
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secret
+          # No DB check - restarting this container can't fix a downed
+          # database. See docs/health-and-readiness-checks.md.
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # Checks the DB is actually reachable - controls whether this pod
+          # receives traffic from the Service below.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# NodePort so the app is reachable from outside the cluster (e.g. Postman on
+# the host machine) via `minikube service student-api -n student-api --url`.
+apiVersion: v1
+kind: Service
+metadata:
+  name: student-api
+  namespace: student-api
+spec:
+  type: NodePort
+  selector:
+    app: rest-api
+  ports:
+    - port: 8888
+      targetPort: 8888

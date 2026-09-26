@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-logs k8s-down k8s-cluster-down
 
 
 IMAGE_NAME := student-rest-api
@@ -18,6 +18,8 @@ MIGRATE_CMD := up
 # host port mysql's 3306 is published on - override if 3306 is already taken
 # on your machine, e.g.: make docker-mysql-up MYSQL_PORT=3307
 MYSQL_PORT := 3306
+# namespace every k8s-* target works in - matches the manifests
+K8S_NAMESPACE := student-api
 
 # Pulls in MYSQL_ROOT_PASSWORD/MYSQL_DATABASE from the gitignored .env file,
 # so no credential value ever appears in this committed Makefile. Also picks
@@ -230,3 +232,53 @@ vagrant-halt:
 # they're written to logs/ on the host through the synced folder.
 vagrant-destroy:
 	vagrant destroy
+
+# creates the 4-node minikube cluster and labels each worker by role. The
+# labels are what the manifests' nodeSelectors match on - a pod whose label
+# has no matching node stays Pending. See docs/minikube.md.
+k8s-cluster-up:
+	minikube start --nodes 4 --driver=docker
+	kubectl wait --for=condition=Ready nodes --all --timeout=120s
+	kubectl label node minikube-m02 type=application --overwrite
+	kubectl label node minikube-m03 type=database --overwrite
+	kubectl label node minikube-m04 type=dependent_services --overwrite
+	kubectl get nodes -L type
+
+# applies the manifests. database first, because the api pod's readiness
+# probe checks the database. Requires Vault and the External Secrets Operator
+# to be set up already - see docs/secrets-management.md - or the ExternalSecret
+# resources have no controller and the pods never get their credentials.
+k8s-deploy:
+	kubectl apply -f manifests/database.yml
+	kubectl apply -f manifests/application.yml
+
+# what's running, and whether the secrets actually synced.
+k8s-status:
+	kubectl get pods -n $(K8S_NAMESPACE) -o wide
+	@echo "==> external secrets:"
+	@kubectl get externalsecret -n $(K8S_NAMESPACE) 2>/dev/null || echo "none"
+
+# opens localhost:8888 onto the service, for curl or Postman. This blocks -
+# the tunnel lives only as long as the command runs, so leave it in its own
+# terminal. On macOS with the docker driver the NodePort is not reachable
+# from the host directly, so a tunnel is the only way in.
+k8s-port-forward:
+	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
+
+# tails the api logs. Use MIGRATE_LOGS=1 for the migration init container's
+# output instead, e.g.: make k8s-logs MIGRATE_LOGS=1
+k8s-logs:
+	@if [ -n "$(MIGRATE_LOGS)" ]; then \
+		kubectl logs -n $(K8S_NAMESPACE) deploy/rest-api -c migrate; \
+	else \
+		kubectl logs -n $(K8S_NAMESPACE) deploy/rest-api -f; \
+	fi
+
+# removes the app and the database, keeping the cluster. This deletes the
+# namespace, and the mysql volume claim with it, so the data is lost.
+k8s-down:
+	kubectl delete -f manifests/application.yml -f manifests/database.yml
+
+# deletes the whole cluster, Vault and its secrets included.
+k8s-cluster-down:
+	minikube delete
