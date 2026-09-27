@@ -8,6 +8,12 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: student-api
+  # Rejects any pod that doesn't meet the "restricted" Pod Security profile,
+  # e.g. one that doesn't set runAsNonRoot. database.yml declares the same
+  # labels - keep them in sync, or applying that file strips them.
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -57,6 +63,15 @@ spec:
       labels:
         app: rest-api
     spec:
+      # Run as the image's "app" user and refuse to start as root, even if a
+      # future image drops its USER line. Numeric IDs, because the kubelet
+      # can't check a user name like "app" against runAsNonRoot.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
       nodeSelector:
         type: application
       initContainers:
@@ -79,6 +94,10 @@ spec:
             limits:
               cpu: "1"
               memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
       containers:
         - name: rest-api
           image: ghcr.io/ritushinde36/student-rest-api:v0.4.5-6-gf42a581
@@ -99,6 +118,10 @@ spec:
             limits:
               cpu: "1"
               memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           # No DB check - restarting this container can't fix a downed
           # database. See docs/health-and-readiness-checks.md.
           livenessProbe:
