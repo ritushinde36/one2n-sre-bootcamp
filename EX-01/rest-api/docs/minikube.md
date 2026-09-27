@@ -20,7 +20,7 @@ You need `minikube`, `kubectl` and `helm`. See [Prerequisites](prerequisites.md)
     │  └────────────────┘    └──────────────────┘  │
     │         ▲                                    │
     │         │              minikube-m04          │
-    │  NodePort service      type=dependent_services│
+    │  kubectl port-forward  type=dependent_services│
     │         │              ┌──────────────────┐  │
     │         │              │ Vault            │  │
     │         │              │ External Secrets │  │
@@ -45,7 +45,6 @@ The command does four things:
 3. Labels each worker with its `type`.
 4. Prints the nodes and their labels.
 
-The first run takes several minutes, because it downloads the node image. Later runs start the existing cluster instead, and are quick.
 
 Each worker gets one label. Every workload uses it to choose a node:
 
@@ -108,7 +107,7 @@ What each manifest creates:
 | File | Creates |
 | --- | --- |
 | [database.yml](../manifests/database.yml) | Namespace, config, external secret, a 2Gi volume claim, the MySQL deployment, and its service |
-| [application.yml](../manifests/application.yml) | Config, external secret, the API deployment with its migration init container, and a NodePort service |
+| [application.yml](../manifests/application.yml) | Config, external secret, the API deployment with its migration init container, and a ClusterIP service |
 
 **Migrations run as an init container.** The API container cannot start until that init container has applied every migration and exited successfully. A failed migration leaves the pod in `Init:Error` rather than serving traffic against a half-migrated schema. See [Database Migrations](migrations.md).
 
@@ -140,7 +139,9 @@ Both `application.yml` and `database.yml` declare the namespace with the same la
 
 ## 4. Reach the API
 
-The service is a NodePort, but on macOS with the `docker` driver the node IP is not routable from the host. A direct call to the node IP and port times out. You need a tunnel.
+The service type is `ClusterIP`. It has an address only inside the cluster, so you need a tunnel to reach it from your machine.
+
+The service is not a NodePort on purpose. On macOS with the `docker` driver, the host cannot route to the node IP, so a NodePort cannot be reached either.
 
 Open one in its own terminal:
 
@@ -157,7 +158,6 @@ curl http://localhost:8888/healthcheck
 curl http://localhost:8888/api/v1/students
 ```
 
-`minikube service student-api -n student-api --url` also works and prints the URL, but it holds its own tunnel open the same way, so it never returns to the prompt.
 
 See [Postman Collection](postman.md) for running the full collection against `http://localhost:8888`.
 

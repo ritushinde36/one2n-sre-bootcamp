@@ -51,7 +51,7 @@ rest-api/
 │   └── default.conf               # Reverse proxy config: load balancing and the JSON access log
 │
 ├── manifests/                     # Kubernetes deployment (see docs/minikube.md)
-│   ├── application.yml            # Namespace, config, external secret, API deployment with migration init container, NodePort service
+│   ├── application.yml            # Namespace, config, external secret, API deployment with migration init container, ClusterIP service
 │   ├── database.yml               # Config, external secret, 2Gi volume claim, MySQL deployment and service
 │   ├── secret-store.yml           # ClusterSecretStore pointing the External Secrets Operator at Vault
 │   └── values/

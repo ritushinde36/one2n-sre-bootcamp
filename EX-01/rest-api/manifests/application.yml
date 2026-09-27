@@ -139,15 +139,16 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
-# NodePort so the app is reachable from outside the cluster (e.g. Postman on
-# the host machine) via `minikube service student-api -n student-api --url`.
+# ClusterIP - reachable only from inside the cluster. From the host, use
+# `make k8s-port-forward`. A NodePort would not help: on macOS with the docker
+# driver the host can't route to the node IP.
 apiVersion: v1
 kind: Service
 metadata:
   name: student-api
   namespace: student-api
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: rest-api
   ports:

@@ -260,8 +260,8 @@ k8s-status:
 
 # opens localhost:8888 onto the service, for curl or Postman. This blocks -
 # the tunnel lives only as long as the command runs, so leave it in its own
-# terminal. On macOS with the docker driver the NodePort is not reachable
-# from the host directly, so a tunnel is the only way in.
+# terminal. The service is ClusterIP, so it has no address outside the
+# cluster - a tunnel is the only way in.
 k8s-port-forward:
 	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
 

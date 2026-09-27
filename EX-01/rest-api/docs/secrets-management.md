@@ -20,7 +20,7 @@ Vault  ──read──▶  External Secrets Operator  ──creates──▶  K
 | `ClusterSecretStore` | [secret-store.yml](../manifests/secret-store.yml) | Tells the operator where Vault is and how to log in |
 | `ExternalSecret` | [application.yml](../manifests/application.yml), [database.yml](../manifests/database.yml) | Names one Vault key and the Kubernetes Secret to create from it |
 
-The store is cluster-scoped, so both `ExternalSecret` objects reference it by name alone.
+
 
 ## 1. Install the External Secrets Operator
 

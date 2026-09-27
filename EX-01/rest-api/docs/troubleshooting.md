@@ -24,6 +24,7 @@ This page lists common errors and how to fix them. Use it when something does no
 | (Kubernetes) An `ExternalSecret` was synced but now shows `SecretSyncedError` | Vault is sealed, so the refresh failed. The pods keep running on the Secret that already exists, but no new value can sync. Unseal Vault. |
 | (Kubernetes) An `ExternalSecret` reports `403 permission denied`, while the store reports `Valid` | The login works but the role has no policy. Run `vault read auth/kubernetes/role/external-secrets` — if `token_policies` is empty, the role was created with `policy=` instead of `token_policies=`. See [Secrets Management](secrets-management.md). |
 | (Kubernetes) Pods stay in `CreateContainerConfigError` | The Secret they read does not exist yet, because the `ExternalSecret` has not synced. Fix the sync first; the pods start on their own afterwards. |
-| (Kubernetes) `curl` to the node IP and NodePort times out | Use `make k8s-port-forward` and call `localhost:8888` instead. |
+| (Kubernetes) `minikube service student-api` reports that the service has no node port | The service is `ClusterIP` on purpose. Use `make k8s-port-forward` and call `localhost:8888` instead. |
+| (Kubernetes) `curl localhost:8888` fails with "connection refused" | The tunnel is not running. Start `make k8s-port-forward` in its own terminal, and leave it open. |
 | (Kubernetes) A pod stays in `Init:Error` | A migration failed. Read `kubectl logs -n student-api deploy/rest-api -c migrate`. The API will not start until migrations succeed. |
 | (Kubernetes) The API starts but `/readyz` fails | The DSN in Vault points at the wrong host. It must use `mysql.student-api.svc`, not `127.0.0.1` or a Docker network name. |
