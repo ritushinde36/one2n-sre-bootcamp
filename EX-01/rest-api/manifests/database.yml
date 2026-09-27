@@ -82,6 +82,16 @@ spec:
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql
+          # Same caps as docker-compose.proxy.yml (Docker's "M" is Mi).
+          # Requests equal limits, so the pod gets the Guaranteed QoS class
+          # and is the last to be evicted under memory pressure.
+          resources:
+            requests:
+              cpu: "2"
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 768Mi
           # Mirrors docker-compose.yml's healthcheck. Wrapped in `sh -c` so
           # the shell expands $MYSQL_ROOT_PASSWORD from the container's own
           # environment - kubelet does not interpolate exec probe commands.
