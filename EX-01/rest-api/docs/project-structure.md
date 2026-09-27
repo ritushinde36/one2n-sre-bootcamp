@@ -55,7 +55,8 @@ rest-api/
 │   ├── database.yml               # Config, external secret, 2Gi volume claim, MySQL deployment and service
 │   ├── secret-store.yml           # ClusterSecretStore pointing the External Secrets Operator at Vault
 │   └── values/
-│       └── vault-values.yaml      # Helm values for Vault: standalone mode, pinned to the dependent_services node
+│       ├── external-secrets-values.yaml  # Helm values for the External Secrets Operator: all three pods pinned to the dependent_services node
+│       └── vault-values.yaml      # Helm values for Vault: standalone mode, pinned to the dependent_services node, agent injector off
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv

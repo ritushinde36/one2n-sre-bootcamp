@@ -18,3 +18,8 @@ server:
       volumeMounts:
         - name: data
           mountPath: /vault/data
+injector:
+  # Not used - secrets reach pods through the External Secrets Operator.
+  # Left on, it runs an unpinned pod and a webhook that sees every pod
+  # created in the cluster.
+  enabled: false

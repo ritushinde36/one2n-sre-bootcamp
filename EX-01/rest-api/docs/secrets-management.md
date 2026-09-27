@@ -30,27 +30,34 @@ The operator supplies the `ClusterSecretStore` and `ExternalSecret` resource typ
 helm repo add external-secrets https://charts.external-secrets.io
 helm repo update
 helm install external-secrets external-secrets/external-secrets \
-  --namespace external-secrets --create-namespace
+  --namespace external-secrets --create-namespace \
+  -f manifests/values/external-secrets-values.yaml
 ```
 
 The namespace and the service account name must both be `external-secrets`. [secret-store.yml](../manifests/secret-store.yml) refers to them.
 
+[external-secrets-values.yaml](../manifests/values/external-secrets-values.yaml) pins all three operator pods to the node labelled `type=dependent_services`. The chart has a separate `nodeSelector` for each pod, so the file sets all three.
+
 Check the pods are running:
 
 ```bash
-kubectl get pods -n external-secrets
+kubectl get pods -n external-secrets -o wide
 ```
 
-Expect three pods, all `1/1 Running`:
+Expect three pods, all `1/1 Running` on `minikube-m04`:
 
 ```
-NAME                                                READY   STATUS
-external-secrets-...                                1/1     Running
-external-secrets-cert-controller-...                1/1     Running
-external-secrets-webhook-...                        1/1     Running
+NAME                                                READY   STATUS    NODE
+external-secrets-...                                1/1     Running   minikube-m04
+external-secrets-cert-controller-...                1/1     Running   minikube-m04
+external-secrets-webhook-...                        1/1     Running   minikube-m04
 ```
 
 Wait until all three are ready before you continue:
+
+```bash
+kubectl wait --for=condition=Ready pods --all -n external-secrets --timeout=120s
+```
 
 
 ## 2. Install Vault
@@ -71,7 +78,7 @@ kubectl get pods -n vault
 
 Expect `vault-0` at **`0/1 Running`**. That is correct, not a failure — Vault starts sealed, and a sealed Vault reports itself as not ready. Step 3 fixes it.
 
-[vault-values.yaml](../manifests/values/vault-values.yaml) pins Vault to the node labelled `type=dependent_services`, gives it 1Gi of storage, and fixes the data directory permissions with an init container.
+[vault-values.yaml](../manifests/values/vault-values.yaml) pins Vault to the node labelled `type=dependent_services`, gives it 1Gi of storage, and fixes the data directory permissions with an init container. It also turns off the Vault agent injector. This setup does not use the injector, because the External Secrets Operator delivers the secrets.
 
 Note: this runs Vault in **standalone** mode, not dev mode. Dev mode starts unsealed and loses everything on restart.
 
