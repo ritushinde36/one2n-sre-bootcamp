@@ -54,6 +54,10 @@ metadata:
   namespace: student-api
 spec:
   replicas: 1
+  # Stop the old pod before starting the new one. Two mysqld processes
+  # can't share /var/lib/mysql, so a rolling update gets stuck.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: mysql
