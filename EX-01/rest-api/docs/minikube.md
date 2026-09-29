@@ -166,13 +166,13 @@ See [After a restart](secrets-management.md#after-a-restart--unseal-vault) for t
 | Command | What it does |
 | --- | --- |
 | `make k8s-status` | The pods, and whether the secrets synced |
-| `make k8s-logs` | Application logs |
-| `make k8s-logs MIGRATE_LOGS=1` | Migration output |
 | `make k8s-port-forward` | Open `localhost:8888` onto the API |
+| `kubectl logs -n student-api deploy/rest-api -f` | Application logs |
+| `kubectl logs -n student-api deploy/rest-api -c migrate` | Migration output |
 | `kubectl describe pod -n student-api <pod>` | Why a pod is not starting |
 | `kubectl rollout restart deployment rest-api -n student-api` | Restart the API |
 
-The last two have no make target, because both need you to choose a pod or read the output carefully. See [Makefile Reference](makefile.md#kubernetes) for the full list.
+The `kubectl` commands have no make target. See [Makefile Reference](makefile.md#kubernetes) for the full list of targets.
 
 ## Cleanup
 

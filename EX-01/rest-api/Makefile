@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-logs k8s-down k8s-cluster-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-down k8s-cluster-down
 
 
 IMAGE_NAME := student-rest-api
@@ -256,7 +256,7 @@ k8s-deploy:
 k8s-status:
 	kubectl get pods -n $(K8S_NAMESPACE) -o wide
 	@echo "==> external secrets:"
-	@kubectl get externalsecret -n $(K8S_NAMESPACE) 2>/dev/null || echo "none"
+	@kubectl get externalsecret -n $(K8S_NAMESPACE)
 
 # opens localhost:8888 onto the service, for curl or Postman. This blocks -
 # the tunnel lives only as long as the command runs, so leave it in its own
@@ -264,15 +264,6 @@ k8s-status:
 # cluster - a tunnel is the only way in.
 k8s-port-forward:
 	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
-
-# tails the api logs. Use MIGRATE_LOGS=1 for the migration init container's
-# output instead, e.g.: make k8s-logs MIGRATE_LOGS=1
-k8s-logs:
-	@if [ -n "$(MIGRATE_LOGS)" ]; then \
-		kubectl logs -n $(K8S_NAMESPACE) deploy/rest-api -c migrate; \
-	else \
-		kubectl logs -n $(K8S_NAMESPACE) deploy/rest-api -f; \
-	fi
 
 # removes the app and the database, keeping the cluster. This deletes the
 # namespace, and the mysql volume claim with it, so the data is lost.

@@ -98,7 +98,6 @@ These targets run against a local minikube cluster. See [Minikube Cluster](minik
 | `make k8s-deploy` | Applies the database and application manifests |
 | `make k8s-status` | Shows the pods and whether the external secrets synced |
 | `make k8s-port-forward` | Opens `localhost:8888` onto the API (blocks — run in its own terminal) |
-| `make k8s-logs` | Tails the API logs (`MIGRATE_LOGS=1` for the migration output) |
 | `make k8s-down` | Removes the app and database, keeps the cluster |
 | `make k8s-cluster-down` | Deletes the whole cluster |
 
@@ -115,6 +114,5 @@ You can override some target variables on the command line, as `make <target> VA
 | `MYSQL_PORT` | `3306` | `docker-mysql-up` | `make docker-mysql-up MYSQL_PORT=3307` |
 | `MIGRATE_CMD` | `up` | `docker-migrate`, `compose-migrate`, `compose-proxy-migrate` | `make docker-migrate MIGRATE_CMD=status` |
 | `K8S_NAMESPACE` | `student-api` | every `k8s-*` target | `make k8s-status K8S_NAMESPACE=other` |
-| `MIGRATE_LOGS` | unset | `k8s-logs` | `make k8s-logs MIGRATE_LOGS=1` |
 
 `compose-up` reads its own overridable variables (`PORT`, `MYSQL_PORT`, `IMAGE_NAME`, `VERSION`) from `.env` or the command line. See [Docker & Docker Compose](docker.md) for details.
