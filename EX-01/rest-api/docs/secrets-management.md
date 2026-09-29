@@ -241,7 +241,6 @@ The setup is complete. The sections below are reference, not steps.
 
 ## After a restart — unseal Vault
 
-**Read this first when you come back to a cluster you set up earlier.**
 
 Vault seals itself every time its pod stops. A machine reboot, `minikube stop`, a node restart — all of them. Nothing unseals it for you, and you do this every time.
 
@@ -269,15 +268,6 @@ kubectl exec -n vault vault-0 -c vault -- vault status
 
 `Sealed` reads `false`, and the pod returns to `1/1 Running`.
 
-Then force the secrets to re-sync, rather than waiting up to an hour for the next refresh:
-
-```bash
-kubectl annotate externalsecret app-secret -n student-api force-sync=$(date +%s) --overwrite
-kubectl annotate externalsecret db-secret  -n student-api force-sync=$(date +%s) --overwrite
-kubectl get externalsecret -n student-api
-```
-
-Both must return to `SecretSynced`.
 
 If you no longer have three unseal keys, the data in Vault cannot be recovered. You have to delete Vault's storage and set it up again — see [Limitations](#limitations).
 
