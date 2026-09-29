@@ -70,15 +70,6 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secret
-          # QoS counts init containers too - without this block the pod is
-          # only Burstable. Same caps as docker-compose.proxy.yml's migrate.
-          resources:
-            requests:
-              cpu: "1"
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 256Mi
       containers:
         - name: rest-api
           image: ghcr.io/ritushinde36/student-rest-api:v0.4.5-6-gf42a581
@@ -90,15 +81,6 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secret
-          # Same caps as docker-compose.proxy.yml's api-1/api-2. Requests
-          # equal limits, so the pod gets the Guaranteed QoS class.
-          resources:
-            requests:
-              cpu: "1"
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 256Mi
           # No DB check - restarting this container can't fix a downed
           # database. See docs/health-and-readiness-checks.md.
           livenessProbe:
