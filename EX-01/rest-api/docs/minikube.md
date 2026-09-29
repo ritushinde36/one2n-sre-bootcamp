@@ -123,20 +123,6 @@ What each manifest creates:
 
 Each container sets its requests equal to its limits. Because of this, both pods get the `Guaranteed` QoS class, and Kubernetes evicts them last when a node is low on memory. Kubernetes stops a container that uses more memory than its limit (`OOMKilled`).
 
-**No pod runs as root.** Each pod sets its user ID in the manifest, so the image's `USER` line does not decide it:
-
-| Pod | User | UID:GID |
-| --- | --- | --- |
-| `rest-api` (and `migrate`) | `app` | `100:101` |
-| `mysql` | `mysql` | `999:999` |
-
-Two checks enforce this:
-
-1. Each pod sets `runAsNonRoot: true`. The kubelet does not start a container that would run as root. The pod shows `CreateContainerConfigError`.
-2. The `student-api` namespace enforces the `restricted` Pod Security profile. The API server rejects a pod that does not declare these settings. `kubectl apply` shows a warning.
-
-Both `application.yml` and `database.yml` declare the namespace with the same labels. If you change the labels, change them in both files. If the files differ, applying one file removes the labels that the other file added.
-
 ## 4. Reach the API
 
 The service type is `ClusterIP`. It has an address only inside the cluster, so you need a tunnel to reach it from your machine.
