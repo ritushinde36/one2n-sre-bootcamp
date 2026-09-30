@@ -31,7 +31,8 @@ helm repo add external-secrets https://charts.external-secrets.io
 helm repo update
 helm install external-secrets external-secrets/external-secrets \
   --namespace external-secrets --create-namespace \
-  -f manifests/values/external-secrets-values.yaml
+  -f manifests/values/external-secrets-values.yaml \
+  --version 2.11.0
 ```
 
 The namespace and the service account name must both be `external-secrets`. [secret-store.yml](../manifests/secret-store.yml) refers to them.
@@ -67,7 +68,8 @@ helm repo add hashicorp https://helm.releases.hashicorp.com
 helm repo update
 helm install vault hashicorp/vault \
   --namespace vault --create-namespace \
-  -f manifests/values/vault-values.yaml
+  -f manifests/values/vault-values.yaml \
+  --version 0.34.1
 ```
 
 Check the pod:
