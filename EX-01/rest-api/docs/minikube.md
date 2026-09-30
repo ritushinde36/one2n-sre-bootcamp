@@ -113,6 +113,20 @@ What each manifest creates:
 
 **The probes differ on purpose.** Liveness calls `/healthcheck`, which does not touch the database — restarting the API cannot fix a downed database. Readiness calls `/readyz`, which does check the database, so a pod that cannot reach MySQL stops receiving traffic without being restarted. See [Health & Readiness Checks](health-and-readiness-checks.md).
 
+**No pod runs as root.** Each pod sets its user ID in the manifest, so the image's `USER` line does not decide it:
+
+| Pod | User | UID:GID |
+| --- | --- | --- |
+| `rest-api` (and `migrate`) | `app` | `100:101` |
+| `mysql` | `mysql` | `999:999` |
+
+Two checks enforce this:
+
+1. Each pod sets `runAsNonRoot: true`. The kubelet does not start a container that would run as root. The pod shows `CreateContainerConfigError`.
+2. The `student-api` namespace enforces the `restricted` Pod Security profile. The API server rejects a pod that does not declare these settings. `kubectl apply` shows a warning.
+
+Both `application.yml` and `database.yml` declare the namespace with the same labels. If you change the labels, change them in both files. If the files differ, applying one file removes the labels that the other file added.
+
 ## 4. Reach the API
 
 The service type is `ClusterIP`. It has an address only inside the cluster, so you need a tunnel to reach it from your machine.
