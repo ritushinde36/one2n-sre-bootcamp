@@ -85,6 +85,15 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secret
+          # QoS counts init containers too - without this block the pod is
+          # only Burstable. Same caps as docker-compose.proxy.yml's migrate.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -100,6 +109,15 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secret
+          # Same caps as docker-compose.proxy.yml's api-1/api-2. Requests
+          # equal limits, so the pod gets the Guaranteed QoS class.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

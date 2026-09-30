@@ -113,6 +113,16 @@ What each manifest creates:
 
 **The probes differ on purpose.** Liveness calls `/healthcheck`, which does not touch the database — restarting the API cannot fix a downed database. Readiness calls `/readyz`, which does check the database, so a pod that cannot reach MySQL stops receiving traffic without being restarted. See [Health & Readiness Checks](health-and-readiness-checks.md).
 
+**Every container has fixed resources.** The values match `docker-compose.proxy.yml`:
+
+| Container | CPU | Memory |
+| --- | --- | --- |
+| `mysql` | 2 | 768Mi |
+| `migrate` (init container) | 1 | 256Mi |
+| `rest-api` | 1 | 256Mi |
+
+Each container sets its requests equal to its limits. Because of this, both pods get the `Guaranteed` QoS class, and Kubernetes evicts them last when a node is low on memory. Kubernetes stops a container that uses more memory than its limit (`OOMKilled`).
+
 **No pod runs as root.** Each pod sets its user ID in the manifest, so the image's `USER` line does not decide it:
 
 | Pod | User | UID:GID |
