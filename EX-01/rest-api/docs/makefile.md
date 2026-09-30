@@ -98,7 +98,7 @@ These targets run against a local minikube cluster. See [Minikube Cluster](minik
 | `make k8s-deploy` | Applies the database and application manifests |
 | `make k8s-status` | Shows the pods and whether the external secrets synced |
 | `make k8s-port-forward` | Opens `localhost:8888` onto the API (blocks — run in its own terminal) |
-| `make k8s-down` | Removes the app and database, keeps the cluster |
+| `make k8s-down` | Removes the app and MySQL, keeps the cluster. The MySQL data stays — see [Cleanup](minikube.md#cleanup) |
 | `make k8s-cluster-down` | Deletes the whole cluster |
 
 ## Overridable Variables

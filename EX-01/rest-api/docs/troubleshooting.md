@@ -28,3 +28,4 @@ This page lists common errors and how to fix them. Use it when something does no
 | (Kubernetes) `curl localhost:8888` fails with "connection refused" | The tunnel is not running. Start `make k8s-port-forward` in its own terminal, and leave it open. |
 | (Kubernetes) A pod stays in `Init:Error` | A migration failed. Read `kubectl logs -n student-api deploy/rest-api -c migrate`. The API will not start until migrations succeed. |
 | (Kubernetes) The API starts but `/readyz` fails | The DSN in Vault points at the wrong host. It must use `mysql.student-api.svc`, not `127.0.0.1` or a Docker network name. |
+| (Kubernetes) Old students, or an old MySQL password, come back after `make k8s-down` and `make k8s-deploy` | `make k8s-down` does not delete the MySQL data. See [Cleanup](minikube.md#cleanup). |

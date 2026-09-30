@@ -182,7 +182,8 @@ Remove the application, keep the cluster:
 make k8s-down
 ```
 
-This deletes the namespace, and the volume claim with it, so the database data is lost.
+This deletes the namespace and the volume claim, but **not the MySQL data**. The next `make k8s-deploy` starts with the old students.
+
 
 Remove everything, Vault and its secrets included:
 

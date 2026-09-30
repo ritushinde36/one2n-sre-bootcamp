@@ -266,7 +266,9 @@ k8s-port-forward:
 	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
 
 # removes the app and the database, keeping the cluster. This deletes the
-# namespace, and the mysql volume claim with it, so the data is lost.
+# namespace and the mysql volume claim, but not the mysql data - minikube's
+# provisioner can't delete volumes on a multi-node cluster. See the Cleanup
+# section of docs/minikube.md to start with an empty database.
 k8s-down:
 	kubectl delete -f manifests/application.yml -f manifests/database.yml
 
