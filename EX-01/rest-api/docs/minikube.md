@@ -106,12 +106,14 @@ What each manifest creates:
 
 | File | Creates |
 | --- | --- |
-| [database.yml](../manifests/database.yml) | Namespace, config, external secret, a 2Gi volume claim, the MySQL deployment, and its service |
+| [database.yml](../manifests/database.yml) | Namespace, config, external secret, the MySQL StatefulSet with its 2Gi volume claim, and its headless service |
 | [application.yml](../manifests/application.yml) | Config, external secret, the API deployment with its migration init container, and a ClusterIP service |
 
 **Migrations run as an init container.** The API container cannot start until that init container has applied every migration and exited successfully. A failed migration leaves the pod in `Init:Error` rather than serving traffic against a half-migrated schema. See [Database Migrations](migrations.md).
 
 **The probes differ on purpose.** Liveness calls `/healthcheck`, which does not touch the database — restarting the API cannot fix a downed database. Readiness calls `/readyz`, which does check the database, so a pod that cannot reach MySQL stops receiving traffic without being restarted. See [Health & Readiness Checks](health-and-readiness-checks.md).
+
+**MySQL runs as a StatefulSet.** The pod is always `mysql-0`, and it gets its own volume claim, `data-mysql-0`. Kubernetes never runs two pods with the same name, so two `mysqld` processes never write to the same data.
 
 **Every container has fixed resources.** The values match `docker-compose.proxy.yml`:
 
@@ -123,17 +125,16 @@ What each manifest creates:
 
 Each container sets its requests equal to its limits. Because of this, both pods get the `Guaranteed` QoS class, and Kubernetes evicts them last when a node is low on memory. Kubernetes stops a container that uses more memory than its limit (`OOMKilled`).
 
-**No pod runs as root.** Each pod sets its user ID in the manifest, so the image's `USER` line does not decide it:
+**No app process runs as root.**
 
 | Pod | User | UID:GID |
 | --- | --- | --- |
 | `rest-api` (and `migrate`) | `app` | `100:101` |
 | `mysql` | `mysql` | `999:999` |
 
-Two checks enforce this:
-
-1. Each pod sets `runAsNonRoot: true`. The kubelet does not start a container that would run as root. The pod shows `CreateContainerConfigError`.
-2. The `student-api` namespace enforces the `restricted` Pod Security profile. The API server rejects a pod that does not declare these settings. `kubectl apply` shows a warning.
+- `rest-api` sets `runAsNonRoot: true`. The kubelet does not start it as root.
+- `mysql` is the exception. Its entrypoint starts as root, gives the data folder to the `mysql` user, and then starts `mysqld` as that user. Started as `999`, MySQL cannot write a new volume, because minikube creates the folder as root.
+- The `student-api` namespace enforces the `baseline` Pod Security profile and warns on `restricted`. `kubectl apply` shows a warning for the MySQL pod. This is expected.
 
 Both `application.yml` and `database.yml` declare the namespace with the same labels. If you change the labels, change them in both files. If the files differ, applying one file removes the labels that the other file added.
 

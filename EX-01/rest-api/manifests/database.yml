@@ -1,5 +1,6 @@
 # MySQL for the Student REST API. Everything this component needs lives in
-# this one file: namespace, config, secret, storage, workload, and service.
+# this one file: namespace, config, secret, workload (with its storage), and
+# service.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -7,7 +8,7 @@ metadata:
   # Same labels as application.yml - keep them in sync, or applying this
   # file strips them.
   labels:
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
@@ -40,29 +41,17 @@ spec:
         key: student-api
         property: MYSQL_ROOT_PASSWORD
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-data
-  namespace: student-api
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 2Gi
----
+# StatefulSet, not Deployment: the pod keeps a fixed name (mysql-0) and its
+# own volume, and Kubernetes never runs two pods with that name at once - two
+# mysqld processes can't share /var/lib/mysql.
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql
   namespace: student-api
 spec:
   replicas: 1
-  # Stop the old pod before starting the new one. Two mysqld processes
-  # can't share /var/lib/mysql, so a rolling update gets stuck.
-  strategy:
-    type: Recreate
+  serviceName: mysql
   selector:
     matchLabels:
       app: mysql
@@ -71,16 +60,12 @@ spec:
       labels:
         app: mysql
     spec:
-      # Run as the image's "mysql" user and refuse to start as root. The
-      # image has no USER line - its entrypoint starts as root, then switches
-      # to mysql itself. Started as 999, it skips that switch and runs mysqld
-      # directly. fsGroup lets that group write the volume on storage that
-      # supports it (minikube's hostPath volumes ignore it).
+      # Starts as root on purpose - the one pod in the namespace that does.
+      # The image's entrypoint chowns /var/lib/mysql to the mysql user (999),
+      # then switches to it, so mysqld itself never runs as root. Started as
+      # 999 instead, mysqld can't write a new volume: minikube creates the
+      # folder on the node as root, and its hostPath volumes ignore fsGroup.
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        runAsGroup: 999
-        fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
       # Pins this pod to the node labeled type=database - see docs/minikube.md.
@@ -97,7 +82,7 @@ spec:
             - secretRef:
                 name: db-secret
           volumeMounts:
-            - name: mysql-data
+            - name: data
               mountPath: /var/lib/mysql
           # Same caps as docker-compose.proxy.yml (Docker's "M" is Mi).
           # Requests equal limits, so the pod gets the Guaranteed QoS class
@@ -109,10 +94,13 @@ spec:
             limits:
               cpu: "2"
               memory: 768Mi
+          # Only the capabilities the entrypoint needs to chown the data
+          # folder and switch to the mysql user.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+              add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETUID", "SETGID"]
           # Mirrors docker-compose.yml's healthcheck. Wrapped in `sh -c` so
           # the shell expands $MYSQL_ROOT_PASSWORD from the container's own
           # environment - kubelet does not interpolate exec probe commands.
@@ -132,19 +120,28 @@ spec:
                 - "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD"
             initialDelaySeconds: 10
             periodSeconds: 5
-      volumes:
-        - name: mysql-data
-          persistentVolumeClaim:
-            claimName: mysql-data
+  # One volume claim per pod, named <template>-<pod>: data-mysql-0.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
 ---
 # Stable DNS name ("mysql", same-namespace short form) that application.yml's
-# DSN points at.
+# DSN points at. Headless (no cluster IP), because it is also the
+# StatefulSet's serviceName: "mysql" resolves straight to the pod IP, and
+# each pod gets its own name, e.g. mysql-0.mysql.student-api.svc.
 apiVersion: v1
 kind: Service
 metadata:
   name: mysql
   namespace: student-api
 spec:
+  clusterIP: None
   selector:
     app: mysql
   ports:

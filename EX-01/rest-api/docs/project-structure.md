@@ -52,7 +52,7 @@ rest-api/
 │
 ├── manifests/                     # Kubernetes deployment (see docs/minikube.md)
 │   ├── application.yml            # Namespace, config, external secret, API deployment with migration init container, ClusterIP service
-│   ├── database.yml               # Config, external secret, 2Gi volume claim, MySQL deployment and service
+│   ├── database.yml               # Config, external secret, MySQL StatefulSet (2Gi volume) and headless service
 │   ├── secret-store.yml           # ClusterSecretStore pointing the External Secrets Operator at Vault
 │   └── values/
 │       ├── external-secrets-values.yaml  # Helm values for the External Secrets Operator: all three pods pinned to the dependent_services node

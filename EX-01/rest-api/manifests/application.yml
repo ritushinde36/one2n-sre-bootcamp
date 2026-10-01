@@ -8,11 +8,12 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: student-api
-  # Rejects any pod that doesn't meet the "restricted" Pod Security profile,
-  # e.g. one that doesn't set runAsNonRoot. database.yml declares the same
-  # labels - keep them in sync, or applying that file strips them.
+  # Enforces "baseline" and warns on "restricted". Not enforced as
+  # restricted, because MySQL's entrypoint must start as root - see
+  # database.yml. database.yml declares the same labels - keep them in sync,
+  # or applying that file strips them.
   labels:
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
