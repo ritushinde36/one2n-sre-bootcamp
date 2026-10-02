@@ -3,7 +3,7 @@
 # both the hard prerequisites (Go, MySQL, Docker, Git, Make) and the optional
 # dev tools some Makefile targets use (staticcheck, newman, hadolint), plus
 # newman's own transitive dependency (Node.js/npm), the Kubernetes tools
-# (minikube, kubectl) needed to run the app on a local cluster, and Vagrant
+# (minikube, kubectl, helm) needed to run the app on a local cluster, and Vagrant
 # (plus UTM and the vagrant_utm plugin, on Apple Silicon (M-series) Macs only
 # - VirtualBox, Vagrant's usual provider, doesn't support M-series chips)
 # needed to run the app in a VM. Skips anything already on PATH. Installation
@@ -160,6 +160,17 @@ install_kubectl() {
 	brew install kubectl
 }
 
+# helm installs the two cluster dependencies the Kubernetes deployment needs -
+# the External Secrets Operator and Vault. See docs/secrets-management.md.
+install_helm() {
+	if command -v helm >/dev/null 2>&1; then
+		echo "helm: already installed ($(command -v helm))"
+		return 0
+	fi
+	echo "helm: installing via brew..."
+	brew install helm
+}
+
 install_vagrant() {
 	if command -v vagrant >/dev/null 2>&1; then
 		echo "vagrant: already installed ($(command -v vagrant))"
@@ -224,6 +235,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	install_hadolint || status=1
 	install_minikube || status=1
 	install_kubectl || status=1
+	install_helm || status=1
 	install_vagrant || status=1
 	install_utm || status=1
 	install_vagrant_utm_plugin || status=1

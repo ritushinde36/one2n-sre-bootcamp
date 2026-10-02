@@ -1,0 +1,219 @@
+# Minikube Cluster
+
+← [Back to README](../README.md)
+
+This page explains how to run the app on a local Kubernetes cluster. It covers creating a multi-node cluster, labelling the nodes by role, and deploying the application to it.
+
+You need `minikube`, `kubectl` and `helm`. See [Prerequisites](prerequisites.md).
+
+## Architecture
+
+```
+                 minikube cluster
+    ┌──────────────────────────────────────────────┐
+    │                                              │
+    │  minikube-m02          minikube-m03          │
+    │  type=application      type=database         │
+    │  ┌────────────────┐    ┌──────────────────┐  │
+    │  │ rest-api pod   │───▶│ mysql pod        │  │
+    │  │ + migrate init │    │ + 2Gi volume     │  │
+    │  └────────────────┘    └──────────────────┘  │
+    │         ▲                                    │
+    │         │              minikube-m04          │
+    │  kubectl port-forward  type=dependent_services│
+    │         │              ┌──────────────────┐  │
+    │         │              │ Vault            │  │
+    │         │              │ External Secrets │  │
+    │         │              └──────────────────┘  │
+    └─────────┼────────────────────────────────────┘
+              │
+        your machine
+```
+
+Each workload is pinned to a node by label. The API and the database never share a node with each other or with Vault.
+
+## 1. Create the cluster
+
+```bash
+make k8s-cluster-up
+```
+
+The command does four things:
+
+1. Creates a cluster of 4 nodes — 1 control plane and 3 workers.
+2. Waits until every node reports ready.
+3. Labels each worker with its `type`.
+4. Prints the nodes and their labels.
+
+
+Each worker gets one label. Every workload uses it to choose a node:
+
+| Node | Label | Runs |
+| --- | --- | --- |
+| `minikube-m02` | `type=application` | The REST API, and the migration init container |
+| `minikube-m03` | `type=database` | MySQL and its persistent volume |
+| `minikube-m04` | `type=dependent_services` | Vault and the External Secrets Operator |
+
+The command ends by printing this, so check all four nodes are `Ready` and three carry a `TYPE`:
+
+```
+NAME           STATUS   ROLES           VERSION   TYPE
+minikube       Ready    control-plane   v1.35.1
+minikube-m02   Ready    <none>          v1.35.1   application
+minikube-m03   Ready    <none>          v1.35.1   database
+minikube-m04   Ready    <none>          v1.35.1   dependent_services
+```
+
+
+## 2. Set up secrets
+
+The manifests hold no secret values. Vault holds them, and the External Secrets Operator syncs them into the cluster.
+
+Follow [Secrets Management](secrets-management.md) before you go further. It installs both tools, initialises Vault, and writes the two secrets the app needs.
+
+Nothing below works until `kubectl get clustersecretstore vault-backend` reports `Valid`.
+
+## 3. Deploy the application
+
+```bash
+make k8s-deploy
+```
+
+The command applies the database first, then the application. Order matters, because the API waits on the database, and both wait on their secrets.
+
+Watch the pods start:
+
+```bash
+kubectl get pods -n student-api -w
+```
+
+Expect this order:
+
+1. `mysql` reaches `1/1 Running`.
+2. `rest-api` shows `Init:0/1` while migrations run.
+3. `rest-api` may show `Init:Error` once or twice, if the migration starts before MySQL accepts connections. This is normal. Kubernetes waits, then tries again.
+4. `rest-api` reaches `1/1 Running`.
+
+Then check the result:
+
+```bash
+make k8s-status
+```
+
+Both pods read `1/1`, and both external secrets read `SecretSynced`.
+
+What each manifest creates:
+
+| File | Creates |
+| --- | --- |
+| [database.yml](../manifests/database.yml) | Namespace, config, external secret, the MySQL StatefulSet with its 2Gi volume claim, and its headless service |
+| [application.yml](../manifests/application.yml) | Config, external secret, the API deployment with its migration init container, and a ClusterIP service |
+
+**Migrations run as an init container.** The API container cannot start until that init container has applied every migration and exited successfully. A failed migration leaves the pod in `Init:Error` rather than serving traffic against a half-migrated schema. See [Database Migrations](migrations.md).
+
+**The probes differ on purpose.** Liveness calls `/healthcheck`, which does not touch the database — restarting the API cannot fix a downed database. Readiness calls `/readyz`, which does check the database, so a pod that cannot reach MySQL stops receiving traffic without being restarted. See [Health & Readiness Checks](health-and-readiness-checks.md).
+
+**MySQL runs as a StatefulSet.** The pod is always `mysql-0`, and it gets its own volume claim, `data-mysql-0`. Kubernetes never runs two pods with the same name, so two `mysqld` processes never write to the same data.
+
+**Every container has fixed resources.** The values match `docker-compose.proxy.yml`:
+
+| Container | CPU | Memory |
+| --- | --- | --- |
+| `mysql` | 2 | 768Mi |
+| `migrate` (init container) | 1 | 256Mi |
+| `rest-api` | 1 | 256Mi |
+
+Each container sets its requests equal to its limits. Because of this, both pods get the `Guaranteed` QoS class, and Kubernetes evicts them last when a node is low on memory. Kubernetes stops a container that uses more memory than its limit (`OOMKilled`).
+
+**No app process runs as root.**
+
+| Pod | User | UID:GID |
+| --- | --- | --- |
+| `rest-api` (and `migrate`) | `app` | `100:101` |
+| `mysql` | `mysql` | `999:999` |
+
+- `rest-api` sets `runAsNonRoot: true`. The kubelet does not start it as root.
+- `mysql` is the exception. Its entrypoint starts as root, gives the data folder to the `mysql` user, and then starts `mysqld` as that user. Started as `999`, MySQL cannot write a new volume, because minikube creates the folder as root.
+- The `student-api` namespace enforces the `baseline` Pod Security profile and warns on `restricted`. `kubectl apply` shows a warning for the MySQL pod. This is expected.
+
+Both `application.yml` and `database.yml` declare the namespace with the same labels. If you change the labels, change them in both files. If the files differ, applying one file removes the labels that the other file added.
+
+## 4. Reach the API
+
+The service type is `ClusterIP`. It has an address only inside the cluster, so you need a tunnel to reach it from your machine.
+
+The service is not a NodePort on purpose. On macOS with the `docker` driver, the host cannot route to the node IP, so a NodePort cannot be reached either.
+
+Open one in its own terminal:
+
+```bash
+make k8s-port-forward
+```
+
+That maps `localhost:8888` onto the service and **stays in the foreground**. The tunnel closes when you stop the command.
+
+From another terminal:
+
+```bash
+curl http://localhost:8888/healthcheck
+curl http://localhost:8888/api/v1/students
+```
+
+
+See [Postman Collection](postman.md) for running the full collection against `http://localhost:8888`.
+
+## The application image
+
+The manifests pull a published image rather than building one:
+
+```
+ghcr.io/ritushinde36/student-rest-api:v0.4.5-6-gf42a581
+```
+
+The CI pipeline builds and pushes it on every merge, tagged with the Git version. See [CI/CD](ci-cd.md).
+
+To deploy a different build, change the tag in [application.yml](../manifests/application.yml) — it appears twice, once for the init container and once for the API container. Both must match, or migrations run on a different version from the app.
+
+## Coming back to an existing cluster
+
+Start the cluster again:
+
+```bash
+minikube start
+```
+
+**Then unseal Vault.** It seals itself every time its pod stops, and nothing does it for you. The app will appear to work without this, because the Kubernetes Secrets it already holds survive — so the problem stays hidden until a pod restarts and cannot find its credentials.
+
+See [After a restart](secrets-management.md#after-a-restart--unseal-vault) for the commands. You need three of the five unseal keys from when you first set Vault up.
+
+## Day-to-day commands
+
+| Command | What it does |
+| --- | --- |
+| `make k8s-status` | The pods, and whether the secrets synced |
+| `make k8s-port-forward` | Open `localhost:8888` onto the API |
+| `kubectl logs -n student-api deploy/rest-api -f` | Application logs |
+| `kubectl logs -n student-api deploy/rest-api -c migrate` | Migration output |
+| `kubectl describe pod -n student-api <pod>` | Why a pod is not starting |
+| `kubectl rollout restart deployment rest-api -n student-api` | Restart the API |
+
+The `kubectl` commands have no make target. See [Makefile Reference](makefile.md#kubernetes) for the full list of targets.
+
+## Cleanup
+
+Remove the application, keep the cluster:
+
+```bash
+make k8s-down
+```
+
+This deletes the namespace and the volume claim, but **not the MySQL data**. The next `make k8s-deploy` starts with the old students.
+
+
+Remove everything, Vault and its secrets included:
+
+```bash
+make k8s-cluster-down
+```
+
+See [Troubleshooting](troubleshooting.md) for common problems.

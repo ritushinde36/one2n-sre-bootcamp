@@ -49,3 +49,21 @@ A `students` table might already exist, for example if you created it by hand, o
 **Migration logging**
 
 Migration logs use structured JSON, through slog, the same as the app itself. See [cmd/migrate/logger.go](../cmd/migrate/logger.go).
+
+**In Kubernetes**
+
+[application.yml](../manifests/application.yml) runs migrations as an **init container** on the API pod. Kubernetes runs init containers to completion before it starts the main container, so the API cannot serve traffic against a schema that is not ready.
+
+This follows the same rule as the Docker and Compose flows: migrations run in their own short-lived container, separate from the app.
+
+- The init container uses the same image and the same config and secret as the API container, so it connects to the same database with the same credentials.
+- If a migration fails, the init container exits non-zero and the pod stays in `Init:Error`. The API never starts.
+- Scaling the deployment to more replicas means each new pod runs the init container. goose records which versions are applied, so later pods find nothing to do and exit at once.
+
+Read the migration output with:
+
+```bash
+kubectl logs -n student-api deploy/rest-api -c migrate
+```
+
+See [Minikube Cluster](minikube.md) for the full deployment.

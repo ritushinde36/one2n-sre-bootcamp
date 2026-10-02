@@ -2,5 +2,10 @@
 # folder to a Postman Cloud workspace) - machine-local, not project content.
 .postman/
 
+# the extension's local copy of the collection and environments, as YAML.
+# the committed copy that newman runs is EX-01/rest-api/postman/*.json. the
+# leading slash matches only the repo-root folder, not that one.
+/postman/
+
 # macOS Finder metadata
 .DS_Store
