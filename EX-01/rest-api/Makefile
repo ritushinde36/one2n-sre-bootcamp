@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-down k8s-cluster-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-down k8s-cluster-down helm-lint helm-dependent-services-up helm-deploy helm-list helm-status helm-down
 
 
 IMAGE_NAME := student-rest-api
@@ -261,7 +261,8 @@ k8s-status:
 # opens localhost:8888 onto the service, for curl or Postman. This blocks -
 # the tunnel lives only as long as the command runs, so leave it in its own
 # terminal. The service is ClusterIP, so it has no address outside the
-# cluster - a tunnel is the only way in.
+# cluster - a tunnel is the only way in. Works after helm-deploy too: the
+# student-api chart names its service student-api as well.
 k8s-port-forward:
 	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
 
@@ -275,3 +276,59 @@ k8s-down:
 # deletes the whole cluster, Vault and its secrets included.
 k8s-cluster-down:
 	minikube delete
+
+# The helm-* targets deploy the same stack as k8s-deploy, from the charts in
+# helm/ instead of the manifests. Every install is
+# `helm upgrade --install`, so each target is safe to run again.
+# --reset-values makes each install use only the values.yaml in git - without
+# it, an upgrade that passes no values keeps the values of the last
+# revision, so a one-off --set would quietly stay on. The cluster itself
+# still comes from k8s-cluster-up. See docs/helm.md.
+
+# static checks on all five charts - no cluster needed.
+helm-lint:
+	helm lint helm/student-api helm/mysql helm/secret-store helm/vault helm/external-secrets
+
+# installs the External Secrets Operator, then Vault. --wait on the
+# operator, so its resource types exist before Vault and the rest go in.
+# No --wait on Vault: it stays 0/1 until it is unsealed, so a wait would
+# only time out. Next, initialise, unseal and configure Vault - see
+# docs/vault-setup.md - then run helm-deploy.
+helm-dependent-services-up:
+	helm upgrade --install external-secrets helm/external-secrets \
+		--namespace external-secrets --create-namespace --wait --reset-values
+	helm upgrade --install vault helm/vault \
+		--namespace vault --create-namespace --reset-values
+
+# installs the secret store, then the database, then the app - database
+# first, because the api pod's readiness probe checks the database. The
+# namespace is made here and not by a chart: it needs the Pod Security
+# labels, and a namespace owned by one release would take the other
+# release down with it on uninstall. --wait returns once the pods are
+# ready. Needs helm-dependent-services-up and an unsealed, set-up Vault.
+helm-deploy:
+	helm upgrade --install secret-store helm/secret-store --namespace external-secrets --reset-values
+	kubectl get namespace $(K8S_NAMESPACE) >/dev/null 2>&1 || kubectl create namespace $(K8S_NAMESPACE)
+	kubectl label namespace $(K8S_NAMESPACE) --overwrite \
+		pod-security.kubernetes.io/enforce=baseline \
+		pod-security.kubernetes.io/warn=restricted
+	helm upgrade --install mysql helm/mysql --namespace $(K8S_NAMESPACE) --wait --reset-values
+	helm upgrade --install student-api helm/student-api --namespace $(K8S_NAMESPACE) --wait --reset-values
+
+# every release in every namespace, with its revision, status and chart
+# version. Each install or upgrade adds 1 to the revision, even when
+# nothing changed.
+helm-list:
+	@echo "==> helm releases:"
+	@helm list --all-namespaces
+
+# the same checks as k8s-status, then every release.
+helm-status: k8s-status helm-list
+
+# removes the app and the database, keeping the cluster, Vault, the
+# operator and the secret store. Unlike k8s-down, it keeps the namespace and
+# the mysql volume claim - the StatefulSet made the claim, not Helm, so
+# helm uninstall leaves it. The next helm-deploy starts with the old data.
+helm-down:
+	helm uninstall student-api --namespace $(K8S_NAMESPACE) --ignore-not-found
+	helm uninstall mysql --namespace $(K8S_NAMESPACE) --ignore-not-found

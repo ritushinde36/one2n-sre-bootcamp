@@ -101,6 +101,21 @@ These targets run against a local minikube cluster. See [Minikube Cluster](minik
 | `make k8s-down` | Removes the app and MySQL, keeps the cluster. The MySQL data stays — see [Cleanup](minikube.md#cleanup) |
 | `make k8s-cluster-down` | Deletes the whole cluster |
 
+## Helm
+
+These targets deploy the same stack as `k8s-deploy`, from the Helm charts in [helm/](../helm/). They use the cluster from `k8s-cluster-up`. See [Helm Charts](helm.md) for the full workflow.
+
+| Command | What it does |
+|---|---|
+| `make helm-lint` | Checks all five charts (no cluster required) |
+| `make helm-dependent-services-up` | Installs the External Secrets Operator, then Vault. Unseal and configure Vault next |
+| `make helm-deploy` | Installs the secret store, creates and labels the namespace, then installs MySQL and the API. Waits until the pods are ready |
+| `make helm-list` | Shows every Helm release, with its revision, status and chart version |
+| `make helm-status` | Shows the same as `k8s-status`, then runs `helm-list` |
+| `make helm-down` | Removes the API and MySQL releases. Keeps the namespace and the MySQL data |
+
+Every install uses `helm upgrade --install --reset-values`. You can run each target again, and each run deploys the values in git. `make k8s-port-forward` works for both ways.
+
 ## Overridable Variables
 
 You can override some target variables on the command line, as `make <target> VARIABLE=value`.
@@ -113,6 +128,6 @@ You can override some target variables on the command line, as `make <target> VA
 | `APP_CONTAINER` | `student-rest-api` | `docker-run`, `docker-down` | `make docker-run APP_CONTAINER=student-rest-api02 HOST_PORT=8882` |
 | `MYSQL_PORT` | `3306` | `docker-mysql-up` | `make docker-mysql-up MYSQL_PORT=3307` |
 | `MIGRATE_CMD` | `up` | `docker-migrate`, `compose-migrate`, `compose-proxy-migrate` | `make docker-migrate MIGRATE_CMD=status` |
-| `K8S_NAMESPACE` | `student-api` | every `k8s-*` target | `make k8s-status K8S_NAMESPACE=other` |
+| `K8S_NAMESPACE` | `student-api` | every `k8s-*` target, `helm-deploy`, `helm-status`, `helm-down` | `make k8s-status K8S_NAMESPACE=other` |
 
 `compose-up` reads its own overridable variables (`PORT`, `MYSQL_PORT`, `IMAGE_NAME`, `VERSION`) from `.env` or the command line. See [Docker & Docker Compose](docker.md) for details.
