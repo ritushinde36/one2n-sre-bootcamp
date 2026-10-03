@@ -1,0 +1,97 @@
+# Default settings for the mysql chart. Override any of them on the command
+# line, e.g. --set externalSecret.refreshInterval=30m, or with your own
+# file: -f my.yaml.
+
+image:
+  repository: mysql
+  # Empty means: use appVersion from Chart.yaml.
+  tag: ""
+
+# Object names are "<release>-mysql", or just "<release>" when the release
+# name already contains "mysql". Leave both empty normally.
+# nameOverride: replaces "mysql" in the names and in the
+#   app.kubernetes.io/name label.
+# fullnameOverride: replaces the whole name.
+# The DSN stored in Vault points at mysql.student-api.svc, so install this
+# chart as release "mysql" in namespace "student-api". Any other name means
+# a new DSN in Vault.
+nameOverride: ""
+fullnameOverride: ""
+
+port: 3306
+
+# The database MySQL creates on its first start. Must match the database
+# name in the DSN stored in Vault. MySQL reads it only while the data volume
+# is empty - changing it later creates nothing.
+database: student_db
+
+# The root password comes from Vault through the External Secrets Operator.
+# These settings only say where to find it - the value itself never appears
+# here.
+externalSecret:
+  # How often the operator reads Vault again.
+  refreshInterval: 1h
+  # Installed by the secret-store chart.
+  secretStoreName: vault-backend
+  # The Vault key that holds the MYSQL_ROOT_PASSWORD property
+  # (secret/student-api).
+  vaultKey: student-api
+
+storage:
+  # Size of the data volume. Set it before the first install: Kubernetes
+  # refuses any change to a StatefulSet's volume claim template, so changing
+  # it later makes `helm upgrade` fail.
+  size: 2Gi
+
+# Runs on the node labelled type=database - see docs/minikube.md.
+nodeSelector:
+  type: database
+
+# Starts as root on purpose - the one pod in the namespace that does. The
+# image's entrypoint chowns /var/lib/mysql to the mysql user (999), then
+# switches to it, so mysqld itself never runs as root. Started as 999
+# instead, mysqld can't write a new volume: minikube creates the folder on
+# the node as root, and its hostPath volumes ignore fsGroup.
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+# Only the capabilities the entrypoint needs to chown the data folder and
+# switch to the mysql user.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+    add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETUID", "SETGID"]
+
+# Same caps as docker-compose.proxy.yml (Docker's "M" is Mi). Requests
+# equal limits, so the pod gets the Guaranteed QoS class and is the last to
+# be evicted under memory pressure.
+resources:
+  requests:
+    cpu: "2"
+    memory: 768Mi
+  limits:
+    cpu: "2"
+    memory: 768Mi
+
+# Mirror docker-compose.yml's healthcheck. Wrapped in `sh -c` so the shell
+# expands $MYSQL_ROOT_PASSWORD from the container's own environment - the
+# kubelet does not expand variables in exec probe commands.
+livenessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD"
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD"
+  initialDelaySeconds: 10
+  periodSeconds: 5

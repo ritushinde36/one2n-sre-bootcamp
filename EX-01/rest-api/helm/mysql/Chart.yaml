@@ -1,0 +1,12 @@
+apiVersion: v2
+name: mysql
+description: >-
+  MySQL for the Student REST API - a one-pod StatefulSet with its own
+  volume, a headless Service, a ConfigMap, and the ExternalSecret that pulls
+  the root password from Vault.
+type: application
+# Version of this chart. Bump it whenever anything in this folder changes.
+version: 0.1.0
+# The mysql image tag deployed when image.tag is empty. `helm list` shows it
+# in the APP VERSION column.
+appVersion: "8.0"

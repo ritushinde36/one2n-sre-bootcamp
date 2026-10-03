@@ -1,0 +1,18 @@
+# Stable DNS name that the DSN in Vault points at: mysql.student-api.svc.
+# Headless (no cluster IP), because it is also the StatefulSet's
+# serviceName: the name resolves straight to the pod IP, and the pod gets
+# its own name too, e.g. mysql-0.mysql.student-api.svc.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mysql.fullname" . }}
+  labels:
+    {{- include "mysql.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "mysql.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: mysql
+      port: {{ .Values.port }}
+      targetPort: mysql
