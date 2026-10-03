@@ -6,6 +6,8 @@ This page explains how to run the app on a local Kubernetes cluster. It covers c
 
 You need `minikube`, `kubectl` and `helm`. See [Prerequisites](prerequisites.md).
 
+This page deploys the app with the manifests in [manifests/](../manifests/). To deploy the same stack with Helm charts, see [Helm Charts](helm.md).
+
 ## Architecture
 
 ```

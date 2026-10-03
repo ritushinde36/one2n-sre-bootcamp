@@ -19,7 +19,7 @@ This page lists the libraries and tools this project uses. It groups them by wha
 | Reverse proxy and load balancer | [nginx](https://nginx.org/) ([nginx/default.conf](../nginx/default.conf)) |
 | VM management | [Vagrant](https://www.vagrantup.com/) ([Vagrantfile](../Vagrantfile)) |
 | VM provider (Apple Silicon) | [UTM](https://mac.getutm.app/), through the `vagrant_utm` plugin |
-| Container orchestration (cluster) | [Kubernetes](https://kubernetes.io/) on [minikube](https://minikube.sigs.k8s.io/) ([manifests/](../manifests/)) |
+| Container orchestration (cluster) | [Kubernetes](https://kubernetes.io/) on [minikube](https://minikube.sigs.k8s.io/) ([manifests/](../manifests/) or [helm/](../helm/)) |
 | Package manager for the cluster | [Helm](https://helm.sh/) |
 | Secret storage | [HashiCorp Vault](https://www.vaultproject.io/) |
 | Secret delivery | [External Secrets Operator](https://external-secrets.io/) |
