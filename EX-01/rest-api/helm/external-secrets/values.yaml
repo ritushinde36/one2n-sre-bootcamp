@@ -1,0 +1,20 @@
+# Our settings for the External Secrets Operator chart. Everything under
+# "external-secrets:" goes to that chart - the key is the dependency's name
+# in Chart.yaml. To see every setting the chart has:
+#   helm show values helm/external-secrets/charts/external-secrets-2.11.0.tgz
+#
+# Same settings as manifests/values/external-secrets-values.yaml, which the
+# kubectl path uses - keep the two in sync.
+external-secrets:
+  # Pins all three External Secrets Operator pods to the node labeled
+  # type=dependent_services, next to Vault - see docs/minikube.md. The chart
+  # has one nodeSelector per component; the top-level one covers only the
+  # controller.
+  nodeSelector:
+    type: dependent_services
+  webhook:
+    nodeSelector:
+      type: dependent_services
+  certController:
+    nodeSelector:
+      type: dependent_services

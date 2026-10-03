@@ -1,0 +1,9 @@
+The External Secrets Operator is installed in namespace {{ .Release.Namespace }}.
+
+Wait until all three pods are 1/1 Running on the dependent_services node:
+
+  kubectl wait --for=condition=Ready pods --all -n {{ .Release.Namespace }} --timeout=120s
+  kubectl get pods -n {{ .Release.Namespace }} -o wide
+
+The ClusterSecretStore and ExternalSecret types exist now, so the
+secret-store, mysql and student-api charts can install.

@@ -1,3 +1,5 @@
+# Same settings as helm/vault/values.yaml (under "vault:"), which the Helm
+# path uses - keep the two in sync.
 server:
   dev:
     enabled: false
