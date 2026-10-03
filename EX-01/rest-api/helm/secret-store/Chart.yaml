@@ -1,0 +1,9 @@
+apiVersion: v2
+name: secret-store
+description: >-
+  The ClusterSecretStore that points the External Secrets Operator at Vault.
+  Built from manifests/secret-store.yml. Install it after the
+  external-secrets chart, which adds the ClusterSecretStore type.
+type: application
+# Version of this chart. Bump it whenever anything in this folder changes.
+version: 0.1.0
