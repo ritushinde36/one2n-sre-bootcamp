@@ -1,0 +1,17 @@
+# ClusterIP - reachable only from inside the cluster. From the host, use
+# kubectl port-forward (printed after install).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "student-api.fullname" . }}
+  labels:
+    {{- include "student-api.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type | quote }}
+  selector:
+    {{- include "student-api.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

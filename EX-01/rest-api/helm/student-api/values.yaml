@@ -1,0 +1,103 @@
+# Default settings for the student-api chart. Override any of them on the
+# command line, e.g. --set ginMode=debug, or with your own file: -f my.yaml.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/ritushinde36/student-rest-api
+  # Empty means: use appVersion from Chart.yaml. Set it to deploy another
+  # build, e.g. --set image.tag=v0.4.6. The migrate init container and the
+  # API container both use this one value, so they always run the same build.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Object names are "<release>-student-api", or just "<release>" when the
+# release name already contains "student-api". Leave both empty normally.
+# nameOverride: replaces "student-api" in the names and in the
+#   app.kubernetes.io/name label.
+# fullnameOverride: replaces the whole name, e.g. "myapp" gives myapp,
+#   myapp-config and myapp-secret.
+nameOverride: ""
+fullnameOverride: ""
+
+# Port the API listens on. A number here: the container and probe ports need
+# a number, and the ConfigMap quotes it, because environment variables are
+# text.
+port: 8888
+ginMode: release
+
+service:
+  # ClusterIP is reachable only from inside the cluster - use
+  # kubectl port-forward from your machine (the install prints the command).
+  type: ClusterIP
+  port: 8888
+
+# The DSN comes from Vault through the External Secrets Operator. These
+# settings only say where to find it - the value itself never appears here.
+externalSecret:
+  # How often the operator reads Vault again.
+  refreshInterval: 1h
+  # Installed by the secret-store chart.
+  secretStoreName: vault-backend
+  # The Vault key that holds the DSN property (secret/student-api).
+  vaultKey: student-api
+
+# Runs on the node labelled type=application - see docs/minikube.md.
+nodeSelector:
+  type: application
+
+# Run as the image's "app" user and refuse to start as root, even if a
+# future image drops its USER line. Numeric IDs, because the kubelet can't
+# check a user name like "app" against runAsNonRoot.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 100
+  runAsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+# Applied to both containers.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# Same caps as docker-compose.proxy.yml's api-1/api-2. Requests equal
+# limits, so the pod gets the Guaranteed QoS class.
+resources:
+  requests:
+    cpu: "1"
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+
+migrate:
+  # QoS counts init containers too - without this block the pod is only
+  # Burstable. Same caps as docker-compose.proxy.yml's migrate.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 256Mi
+
+# No DB check - restarting this container can't fix a downed database.
+# See docs/health-and-readiness-checks.md. "http" is the container port's
+# name, so the probes follow `port` above.
+livenessProbe:
+  httpGet:
+    path: /healthcheck
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# Checks the DB is actually reachable - controls whether this pod receives
+# traffic from the Service.
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10

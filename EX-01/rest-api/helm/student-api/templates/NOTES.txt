@@ -1,0 +1,15 @@
+{{ include "student-api.fullname" . }} is installed in namespace {{ .Release.Namespace }}.
+Image: {{ include "student-api.image" . }}
+
+Check the pod is ready (READY 1/1):
+
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Reach the API from your machine. This command blocks - keep it in its own
+terminal:
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "student-api.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+Then, in another terminal:
+
+  curl http://localhost:{{ .Values.service.port }}/healthcheck
