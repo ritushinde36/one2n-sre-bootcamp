@@ -1,0 +1,25 @@
+# The REST API, from helm/student-api. Wave 3: its readiness check needs the
+# database from wave 2. The CI pipeline deploys a new build by committing its
+# tag to image.tag in helm/student-api/values.yaml - this app then syncs it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-api
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: student-api
+  source:
+    repoURL: https://github.com/ritushinde36/one2n-sre-bootcamp.git
+    targetRevision: feature/helm-argocd
+    path: EX-01/rest-api/helm/student-api
+    helm:
+      releaseName: student-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-api
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

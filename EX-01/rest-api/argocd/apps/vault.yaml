@@ -1,0 +1,27 @@
+# Vault, from helm/vault. Wave 0. Vault starts sealed, so this app stays
+# Progressing - and waves 1 to 3 wait - until you initialise and unseal it.
+# See docs/vault-setup.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: student-api
+  source:
+    repoURL: https://github.com/ritushinde36/one2n-sre-bootcamp.git
+    targetRevision: feature/helm-argocd
+    path: EX-01/rest-api/helm/vault
+    helm:
+      releaseName: vault
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

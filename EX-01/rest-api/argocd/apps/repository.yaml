@@ -1,0 +1,17 @@
+# Registers this git repository with Argo CD - the label is what makes a
+# Secret a repository entry. The repository is public, so the entry holds
+# only its address: no username, password or key. Wave -1: in place before
+# any app reads from it.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: one2n-sre-bootcamp-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+type: Opaque
+stringData:
+  type: git
+  url: https://github.com/ritushinde36/one2n-sre-bootcamp.git

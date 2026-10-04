@@ -1,0 +1,32 @@
+# MySQL, from helm/mysql. Wave 2: it needs its secret from the store in
+# wave 1. This app also creates the student-api namespace, with its Pod
+# Security labels - only this app, so that no two apps manage the same
+# namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mysql
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: student-api
+  source:
+    repoURL: https://github.com/ritushinde36/one2n-sre-bootcamp.git
+    targetRevision: feature/helm-argocd
+    path: EX-01/rest-api/helm/mysql
+    helm:
+      releaseName: mysql
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-api
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted

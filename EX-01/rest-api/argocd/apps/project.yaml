@@ -1,0 +1,26 @@
+# The project the five apps belong to. It limits what they may do: deploy
+# only from this repository, and only into these three namespaces. Cluster-
+# wide objects stay allowed, because the charts need them - ESO's CRDs,
+# ClusterRoles, webhooks, the ClusterSecretStore, and the namespaces that
+# CreateNamespace makes. Wave -1: in place before any app uses it.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: student-api
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: The Student REST API and the services it depends on.
+  sourceRepos:
+    - https://github.com/ritushinde36/one2n-sre-bootcamp.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
+    - server: https://kubernetes.default.svc
+      namespace: vault
+    - server: https://kubernetes.default.svc
+      namespace: student-api
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
