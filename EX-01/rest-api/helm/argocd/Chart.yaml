@@ -1,0 +1,14 @@
+apiVersion: v2
+name: argocd
+description: >-
+  The community Argo CD chart at a fixed version, with our settings. The
+  community chart itself is charts/argo-cd-10.9.6.tgz, downloaded by
+  `helm dependency update`. This chart only adds values.yaml.
+type: application
+# Version of this chart. Bump it whenever anything in this folder changes,
+# including the dependency version below.
+version: 0.1.0
+dependencies:
+  - name: argo-cd
+    version: 10.9.6
+    repository: https://argoproj.github.io/argo-helm

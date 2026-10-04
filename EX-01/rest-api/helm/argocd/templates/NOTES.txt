@@ -1,0 +1,11 @@
+Argo CD is installed in namespace {{ .Release.Namespace }}.
+
+Check that all its pods are Running on the dependent_services node:
+
+  kubectl get pods -n {{ .Release.Namespace }} -o wide
+
+The UI user is admin. Its first password is in a Secret:
+
+  kubectl get secret argocd-initial-admin-secret -n {{ .Release.Namespace }} -o jsonpath='{.data.password}' | base64 -d; echo
+
+Next: open the UI and apply the root app - see docs/argocd.md.
