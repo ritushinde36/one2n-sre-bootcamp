@@ -57,12 +57,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-The image tag: image.tag if set, otherwise appVersion from Chart.yaml.
-Stops the install if both are empty, instead of deploying an image with
-no tag.
+The image tag, from image.tag. Stops the install if it is empty, instead of
+deploying an image with no tag.
 */}}
 {{- define "student-api.tag" -}}
-{{- required "image.tag is empty and Chart.yaml has no appVersion - set one, e.g. --set image.tag=v0.4.5-6-gf42a581" (.Values.image.tag | default .Chart.AppVersion) }}
+{{- required "image.tag is required, e.g. --set image.tag=v0.4.5-6-gf42a581" .Values.image.tag }}
 {{- end }}
 
 {{/*

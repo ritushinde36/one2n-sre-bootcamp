@@ -214,7 +214,7 @@ helm upgrade --install student-api helm/student-api -n student-api --wait --set 
 
 `<tag>` is an image tag that CI pushed to GHCR. See [CI/CD](ci-cd.md). The `migrate` init container and the API container use the same tag.
 
-To keep the build, set `appVersion` in [helm/student-api/Chart.yaml](../helm/student-api/Chart.yaml) to the tag, and commit it. Without that, the next `make helm-deploy` goes back to the old `appVersion`.
+To keep the build, set `image.tag` in [helm/student-api/values.yaml](../helm/student-api/values.yaml) to the tag, and commit it. Without that, the next `make helm-deploy` goes back to the tag in `values.yaml`. CI also sets this tag after every successful build on `main`.
 
 ## Day-to-day commands
 
@@ -228,7 +228,7 @@ To keep the build, set `appVersion` in [helm/student-api/Chart.yaml](../helm/stu
 | `helm history student-api -n student-api` | Lists every revision of the release |
 | `helm rollback student-api <revision> -n student-api` | Returns the release to an earlier revision |
 | `helm get manifest student-api -n student-api` | Shows the YAML that Helm applied for the release |
-| `make helm-lint` | Checks all five charts. Needs no cluster |
+| `make helm-lint` | Checks every chart in `helm/`. Needs no cluster |
 | `helm template student-api helm/student-api -n student-api` | Shows the YAML that a chart makes. Needs no cluster |
 
 See [Makefile Reference](makefile.md#helm) for every `helm-*` target.

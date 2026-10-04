@@ -5,10 +5,11 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/ritushinde36/student-rest-api
-  # Empty means: use appVersion from Chart.yaml. Set it to deploy another
-  # build, e.g. --set image.tag=v0.4.6. The migrate init container and the
-  # API container both use this one value, so they always run the same build.
-  tag: ""
+  # The build to deploy - a tag that CI pushed to GHCR. CI rewrites this line
+  # after every successful build, and Argo CD then deploys it. The migrate
+  # init container and the API container both use this one value, so they
+  # always run the same build.
+  tag: "v0.4.5-6-gf42a581"
   pullPolicy: IfNotPresent
 
 # Object names are "<release>-student-api", or just "<release>" when the
