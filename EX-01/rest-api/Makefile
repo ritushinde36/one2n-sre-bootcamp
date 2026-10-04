@@ -1,4 +1,4 @@
-.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-down k8s-cluster-down helm-lint helm-dependent-services-up helm-deploy helm-list helm-status helm-down
+.PHONY: deps build run test test-coverage test-list test-one vet fmt staticcheck hadolint newman newman-vagrant migrate-up migrate-down migrate-status docker-build docker-migrate docker-run docker-down docker-network docker-mysql-up docker-mysql-down compose-up compose-migrate compose-down compose-proxy-up compose-proxy-migrate compose-proxy-down vagrant-up vagrant-provision vagrant-status vagrant-ssh vagrant-halt vagrant-destroy k8s-cluster-up k8s-deploy k8s-status k8s-port-forward k8s-down k8s-cluster-down helm-lint helm-dependent-services-up helm-deploy helm-list helm-status helm-down argocd-install argocd-password argocd-ui argocd-apps argocd-status
 
 
 IMAGE_NAME := student-rest-api
@@ -261,8 +261,8 @@ k8s-status:
 # opens localhost:8888 onto the service, for curl or Postman. This blocks -
 # the tunnel lives only as long as the command runs, so leave it in its own
 # terminal. The service is ClusterIP, so it has no address outside the
-# cluster - a tunnel is the only way in. Works after helm-deploy too: the
-# student-api chart names its service student-api as well.
+# cluster - a tunnel is the only way in. Works with the helm-* and argocd-*
+# targets too: the student-api chart names its service student-api as well.
 k8s-port-forward:
 	kubectl port-forward -n $(K8S_NAMESPACE) svc/student-api 8888:8888
 
@@ -285,9 +285,9 @@ k8s-cluster-down:
 # revision, so a one-off --set would quietly stay on. The cluster itself
 # still comes from k8s-cluster-up. See docs/helm.md.
 
-# static checks on all five charts - no cluster needed.
+# static checks on every chart in helm/ - no cluster needed.
 helm-lint:
-	helm lint helm/student-api helm/mysql helm/secret-store helm/vault helm/external-secrets
+	helm lint helm/student-api helm/mysql helm/secret-store helm/vault helm/external-secrets helm/argocd
 
 # installs the External Secrets Operator, then Vault. --wait on the
 # operator, so its resource types exist before Vault and the rest go in.
@@ -332,3 +332,32 @@ helm-status: k8s-status helm-list
 helm-down:
 	helm uninstall student-api --namespace $(K8S_NAMESPACE) --ignore-not-found
 	helm uninstall mysql --namespace $(K8S_NAMESPACE) --ignore-not-found
+
+# The argocd-* targets deploy the same stack with Argo CD: it reads the
+# charts in helm/ from git, and keeps the cluster in step with them. The
+# cluster itself still comes from k8s-cluster-up. See docs/argocd.md.
+
+# installs Argo CD into the argocd namespace, on the dependent_services
+# node, and waits until all its pods are ready.
+argocd-install:
+	helm upgrade --install argocd helm/argocd \
+		--namespace argocd --create-namespace --wait --reset-values
+
+# prints the first password of the UI's admin user.
+argocd-password:
+	@kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo
+
+# opens https://localhost:8443 onto the Argo CD UI. This blocks - leave it in
+# its own terminal. 8443, because the Vagrant way uses 8080. The browser
+# warns about the certificate, because Argo CD signs its own.
+argocd-ui:
+	kubectl port-forward -n argocd svc/argocd-server 8443:443
+
+# hands Argo CD the root app, once. From then on, Argo CD reads the other
+# Applications from argocd/apps/ in git.
+argocd-apps:
+	kubectl apply -f argocd/root.yaml
+
+# every Argo CD app, with its sync and health status.
+argocd-status:
+	kubectl get applications -n argocd

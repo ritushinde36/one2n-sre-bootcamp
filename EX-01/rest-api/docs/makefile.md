@@ -107,7 +107,7 @@ These targets deploy the same stack as `k8s-deploy`, from the Helm charts in [he
 
 | Command | What it does |
 |---|---|
-| `make helm-lint` | Checks all five charts (no cluster required) |
+| `make helm-lint` | Checks every chart in `helm/` (no cluster required) |
 | `make helm-dependent-services-up` | Installs the External Secrets Operator, then Vault. Unseal and configure Vault next |
 | `make helm-deploy` | Installs the secret store, creates and labels the namespace, then installs MySQL and the API. Waits until the pods are ready |
 | `make helm-list` | Shows every Helm release, with its revision, status and chart version |
@@ -115,6 +115,18 @@ These targets deploy the same stack as `k8s-deploy`, from the Helm charts in [he
 | `make helm-down` | Removes the API and MySQL releases. Keeps the namespace and the MySQL data |
 
 Every install uses `helm upgrade --install --reset-values`. You can run each target again, and each run deploys the values in git. `make k8s-port-forward` works for both ways.
+
+## Argo CD
+
+These targets install Argo CD, and hand it the charts in [helm/](../helm/). Argo CD then deploys the stack from git. They use the cluster from `k8s-cluster-up`. See [Argo CD](argocd.md) for the full workflow.
+
+| Command | What it does |
+|---|---|
+| `make argocd-install` | Installs Argo CD in the `argocd` namespace, on the `dependent_services` node. Waits until its pods are ready |
+| `make argocd-password` | Prints the first password of the UI user `admin` |
+| `make argocd-ui` | Opens `https://localhost:8443` onto the Argo CD UI (blocks — run in its own terminal) |
+| `make argocd-apps` | Applies the root app. Argo CD then creates the other apps from git |
+| `make argocd-status` | Shows every Argo CD app, with its sync and health status |
 
 ## Overridable Variables
 
