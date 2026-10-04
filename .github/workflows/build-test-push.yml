@@ -5,8 +5,13 @@ on:
     branches:
       - "feature/ci"
       - "main"
+      - "feature/helm-argocd"
+    # A push that changes only files under helm/ does not run the pipeline:
+    # a chart change needs no new image. This includes the commit that
+    # update-image-tag pushes, so the pipeline does not start itself again.
     paths:
       - "EX-01/rest-api/**"
+      - "!EX-01/rest-api/helm/**"
   workflow_dispatch:
 
 permissions:
@@ -16,6 +21,8 @@ permissions:
 jobs:
   build-test-push:
     runs-on: self-hosted
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/student-rest-api
     defaults:
@@ -29,7 +36,11 @@ jobs:
           fetch-tags: true
 
       - name: Determine version
-        run: echo "VERSION=$(git describe --tags --always --dirty)" >> "$GITHUB_ENV"
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always --dirty)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -81,5 +92,46 @@ jobs:
         run: |
           docker image prune -af --filter "until=24h"
           docker builder prune -af --filter "until=24h"
+
+  # Deploys the image that build-test-push just pushed: writes its tag into
+  # the student-api chart, and pushes that commit. Argo CD watches the branch,
+  # and syncs the new tag.
+  update-image-tag:
+    needs: build-test-push
+    runs-on: self-hosted
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.build-test-push.outputs.version }}
+      BRANCH: ${{ github.ref_name }}
+      VALUES_FILE: EX-01/rest-api/helm/student-api/values.yaml
+    steps:
+      # With the deploy key, not the default token: main accepts only reviewed
+      # pull requests, and its ruleset lets deploy keys bypass that rule.
+      - name: Checkout the latest commit of the branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      # sed, not yq: yq drops every blank line in the file. This changes only
+      # the tag line inside the image: block.
+      - name: Set image.tag in the student-api chart
+        run: |
+          sed -E "/^image:/,/^[^ #]/ s|^(  tag: ).*|\1\"${VERSION}\"|" "$VALUES_FILE" > "$VALUES_FILE.tmp"
+          mv "$VALUES_FILE.tmp" "$VALUES_FILE"
+          git diff -- "$VALUES_FILE"
+
+      - name: Commit and push
+        run: |
+          if git diff --quiet -- "$VALUES_FILE"; then
+            echo "image.tag is already $VERSION - nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ci: deploy student-api $VERSION" -- "$VALUES_FILE"
+          git pull --rebase origin "$BRANCH"
+          git push origin "HEAD:$BRANCH"
 
 
