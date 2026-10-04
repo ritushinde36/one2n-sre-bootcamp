@@ -21,3 +21,9 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # Waves 1 to 3 cannot turn Healthy until someone unseals and configures
+    # Vault by hand, and Argo CD counts that as a failed sync. Its default of
+    # 5 retries can run out first, and then root stops for good. -1 retries
+    # without a limit - the wait doubles each time, up to 3 minutes.
+    retry:
+      limit: -1
