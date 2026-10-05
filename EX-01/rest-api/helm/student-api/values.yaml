@@ -25,7 +25,7 @@ fullnameOverride: ""
 # a number, and the ConfigMap quotes it, because environment variables are
 # text.
 port: 8888
-ginMode: debug
+ginMode: release
 
 service:
   # ClusterIP is reachable only from inside the cluster - use
