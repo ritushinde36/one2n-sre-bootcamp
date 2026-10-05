@@ -1,6 +1,6 @@
-# The root app - the only Argo CD object applied by hand (make argocd-apps).
+# The root app - the only Argo CD object that make argocd-apps applies.
 # Its source is not a chart: it is the folder argocd/apps/, which holds the
-# other Argo CD objects. Argo CD creates them, and keeps them in step with git
+# other Argo CD objects. Argo CD creates them, and keeps them in sync with git
 # from then on. Uses the built-in "default" project, because the student-api
 # project is one of the objects it creates.
 apiVersion: argoproj.io/v1alpha1

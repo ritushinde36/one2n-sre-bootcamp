@@ -334,7 +334,7 @@ helm-down:
 	helm uninstall mysql --namespace $(K8S_NAMESPACE) --ignore-not-found
 
 # The argocd-* targets deploy the same stack with Argo CD: it reads the
-# charts in helm/ from git, and keeps the cluster in step with them. The
+# charts in helm/ from git, and keeps the cluster in sync with them. The
 # cluster itself still comes from k8s-cluster-up. See docs/argocd.md.
 
 # installs Argo CD into the argocd namespace, on the dependent_services
