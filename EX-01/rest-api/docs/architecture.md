@@ -15,6 +15,7 @@ Each page below shows how the pieces are arranged for that deployment, and what 
 | A Vagrant VM | Two API containers behind an nginx load balancer, inside one VM. | [Vagrant VM](vagrant.md) |
 | Kubernetes | Pods on labelled nodes, with secrets from Vault. | [Minikube Cluster](minikube.md) |
 | Kubernetes, with Helm | The same pods, installed as five Helm releases instead of with `kubectl`. | [Helm Charts](helm.md) |
+| Kubernetes, with Argo CD | The same pods, deployed by Argo CD from the Helm charts in git. | [Argo CD](argocd.md) |
 
 Two things change with the deployment, and are worth reading about where they differ:
 

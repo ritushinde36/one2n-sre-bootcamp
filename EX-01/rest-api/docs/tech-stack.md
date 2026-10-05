@@ -21,6 +21,7 @@ This page lists the libraries and tools this project uses. It groups them by wha
 | VM provider (Apple Silicon) | [UTM](https://mac.getutm.app/), through the `vagrant_utm` plugin |
 | Container orchestration (cluster) | [Kubernetes](https://kubernetes.io/) on [minikube](https://minikube.sigs.k8s.io/) ([manifests/](../manifests/) or [helm/](../helm/)) |
 | Package manager for the cluster | [Helm](https://helm.sh/) |
+| Continuous delivery (GitOps) | [Argo CD](https://argo-cd.readthedocs.io/) ([argocd/](../argocd/)) |
 | Secret storage | [HashiCorp Vault](https://www.vaultproject.io/) |
 | Secret delivery | [External Secrets Operator](https://external-secrets.io/) |
 

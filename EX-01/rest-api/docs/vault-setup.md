@@ -4,7 +4,7 @@
 
 This page configures Vault after you install it. It covers three steps: initialise and unseal Vault, write the secrets, and let the External Secrets Operator log in.
 
-Both Kubernetes ways use these steps: step 3 of [Secrets Management](secrets-management.md) for the manifests, and step 3 of [Helm Charts](helm.md). Before you start, the Vault pod `vault-0` must exist, at `0/1 Running`.
+Before you start, the Vault pod `vault-0` must exist, at `0/1 Running`.
 
 ## 1. Initialise and unseal Vault
 
@@ -134,3 +134,4 @@ Return to the page you came from:
 
 - Manifests: [Secrets Management, step 4](secrets-management.md#4-apply-the-store).
 - Helm charts: [Helm Charts, step 4](helm.md#4-deploy-the-application).
+- Argo CD: [Argo CD, step 6](argocd.md#6-watch-the-apps-finish).

@@ -176,10 +176,9 @@ From another terminal:
 
 ```bash
 curl http://localhost:8888/healthcheck
-make newman
 ```
 
-`make newman` runs the Postman collection against `localhost:8888`. See [Postman Collection](postman.md).
+See [Postman Collection](postman.md).
 
 ## Change a setting
 
