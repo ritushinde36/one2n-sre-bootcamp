@@ -3,7 +3,7 @@
 # both the hard prerequisites (Go, MySQL, Docker, Git, Make) and the optional
 # dev tools some Makefile targets use (staticcheck, newman, hadolint), plus
 # newman's own transitive dependency (Node.js/npm), the Kubernetes tools
-# (minikube, kubectl, helm) needed to run the app on a local cluster, and Vagrant
+# (minikube, kubectl, helm, argocd) needed to run the app on a local cluster, and Vagrant
 # (plus UTM and the vagrant_utm plugin, on Apple Silicon (M-series) Macs only
 # - VirtualBox, Vagrant's usual provider, doesn't support M-series chips)
 # needed to run the app in a VM. Skips anything already on PATH. Installation
@@ -171,6 +171,17 @@ install_helm() {
 	brew install helm
 }
 
+# The argocd CLI checks and syncs the apps that Argo CD runs in the cluster
+# (make argocd-install). See docs/argocd.md.
+install_argocd() {
+	if command -v argocd >/dev/null 2>&1; then
+		echo "argocd: already installed ($(command -v argocd))"
+		return 0
+	fi
+	echo "argocd: installing via brew..."
+	brew install argocd
+}
+
 install_vagrant() {
 	if command -v vagrant >/dev/null 2>&1; then
 		echo "vagrant: already installed ($(command -v vagrant))"
@@ -236,6 +247,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	install_minikube || status=1
 	install_kubectl || status=1
 	install_helm || status=1
+	install_argocd || status=1
 	install_vagrant || status=1
 	install_utm || status=1
 	install_vagrant_utm_plugin || status=1
