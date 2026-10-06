@@ -28,3 +28,51 @@ argo-cd:
           end
         end
         return hs
+
+  # Resources for every Argo CD container. Requests equal limits, so every
+  # Argo CD pod gets the Guaranteed QoS class, the same as the API and MySQL.
+  # Memory: about twice the peak that kubectl top showed during a hard refresh
+  # of all apps. The repo-server gets more: its rendering spikes are too short
+  # for metrics-server to catch. CPU: small fixed amounts - over its limit a
+  # container only slows down. The two init containers and the
+  # redis-secret-init job use the chart's example sizes.
+  controller:
+    resources:
+      requests: { cpu: 250m, memory: 768Mi }
+      limits: { cpu: 250m, memory: 768Mi }
+  repoServer:
+    resources:
+      requests: { cpu: 250m, memory: 256Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    copyutil:
+      resources:
+        requests: { cpu: 100m, memory: 128Mi }
+        limits: { cpu: 100m, memory: 128Mi }
+  server:
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  redis:
+    resources:
+      requests: { cpu: 100m, memory: 64Mi }
+      limits: { cpu: 100m, memory: 64Mi }
+  dex:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 50m, memory: 128Mi }
+    initImage:
+      resources:
+        requests: { cpu: 10m, memory: 144Mi }
+        limits: { cpu: 10m, memory: 144Mi }
+  notifications:
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { cpu: 50m, memory: 64Mi }
+  applicationSet:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 50m, memory: 128Mi }
+  redisSecretInit:
+    resources:
+      requests: { cpu: 200m, memory: 128Mi }
+      limits: { cpu: 200m, memory: 128Mi }
