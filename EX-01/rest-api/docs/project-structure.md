@@ -8,7 +8,7 @@ This page shows the layout of this repository. It explains what each file and fo
 rest-api/
 ├── README.md                      # Entry point: quick start plus links to every page below
 ├── main.go                        # Application entry point: config, database connect, routes, graceful shutdown
-├── Makefile                       # build, run, test, migrate-*, docker-*, compose-*, and vagrant-* targets
+├── Makefile                       # build, run, test, migrate-*, docker-*, compose-*, vagrant-*, k8s-*, helm-*, and argocd-* targets
 ├── go.mod, go.sum                 # Go module definition and dependency lockfile
 ├── .env.example                   # Documents all supported environment variables, used both locally and for Docker
 ├── .gitignore                     # Files and folders excluded from version control
@@ -22,6 +22,7 @@ rest-api/
 ├── docs/                          # This documentation, one focused page per topic
 │   ├── api-reference.md                     # Endpoints, request/response formats, pagination, status codes
 │   ├── architecture.md                      # How the client, REST API, database, and migrations fit together
+│   ├── argocd.md                            # Deploying the same Kubernetes stack with Argo CD
 │   ├── ci-cd.md                             # The GitHub Actions pipeline: steps, triggers, image publishing
 │   ├── data-model.md                        # The `Student` schema and its constraints
 │   ├── docker.md                            # Running the app with Docker and Docker Compose
@@ -29,6 +30,7 @@ rest-api/
 │   ├── features.md                          # Full feature list
 │   ├── graceful-shutdown.md                 # SIGINT/SIGTERM handling, draining in-flight requests
 │   ├── health-and-readiness-checks.md       # Liveness and readiness checks for the app
+│   ├── helm.md                              # Deploying the same Kubernetes stack with Helm charts
 │   ├── logging.md                           # Log format and sources
 │   ├── makefile.md                          # Every `make` target, grouped by what it does
 │   ├── migrations.md                        # Running migrations locally, in Docker, and in Compose
@@ -41,7 +43,8 @@ rest-api/
 │   ├── tech-stack.md                        # Libraries and tools, by concern
 │   ├── testing.md                           # Running tests and code quality checks
 │   ├── troubleshooting.md                   # Common errors and fixes
-│   └── vagrant.md                           # Deploying on bare metal in a Vagrant VM
+│   ├── vagrant.md                           # Deploying on bare metal in a Vagrant VM
+│   └── vault-setup.md                       # Initialising, unsealing and configuring Vault, for every Kubernetes way
 │
 ├── scripts/
 │   ├── install-prerequisites.sh   # Installs everything in Prerequisites if missing (macOS only)
@@ -57,6 +60,25 @@ rest-api/
 │   └── values/
 │       ├── external-secrets-values.yaml  # Helm values for the External Secrets Operator: all three pods pinned to the dependent_services node
 │       └── vault-values.yaml      # Helm values for Vault: standalone mode, pinned to the dependent_services node, agent injector off
+│
+├── helm/                          # Helm charts: the same Kubernetes stack as manifests/ (see docs/helm.md)
+│   ├── student-api/               # Our chart: API deployment with migration init container, config, external secret, ClusterIP service
+│   ├── mysql/                     # Our chart: MySQL StatefulSet (2Gi volume), config, external secret, headless service
+│   ├── secret-store/              # Our chart: ClusterSecretStore pointing the External Secrets Operator at Vault
+│   ├── vault/                     # Wrapper: the community Vault chart 0.34.1 (charts/*.tgz), with our values
+│   ├── external-secrets/          # Wrapper: the community External Secrets Operator chart 2.11.0 (charts/*.tgz), with our values
+│   └── argocd/                    # Wrapper: the community Argo CD chart 10.9.6 (charts/*.tgz), with our values
+│
+├── argocd/                        # Argo CD objects: the same stack, deployed from the charts in helm/ (see docs/argocd.md)
+│   ├── root.yaml                  # The root app, the only one that make argocd-apps applies. It points Argo CD at apps/
+│   └── apps/
+│       ├── project.yaml           # AppProject: only this repository, and the three namespaces
+│       ├── repository.yaml        # Repository Secret: registers this repository (URL only)
+│       ├── external-secrets.yaml  # App, wave 0: helm/external-secrets
+│       ├── vault.yaml             # App, wave 0: helm/vault
+│       ├── secret-store.yaml      # App, wave 1: helm/secret-store
+│       ├── mysql.yaml             # App, wave 2: helm/mysql, and the student-api namespace
+│       └── student-api.yaml       # App, wave 3: helm/student-api
 │
 ├── config/
 │   └── load_config.go             # Loads environment variables from .env via godotenv

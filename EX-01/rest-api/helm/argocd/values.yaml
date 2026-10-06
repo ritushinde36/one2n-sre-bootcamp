@@ -1,0 +1,78 @@
+# Our settings for the community Argo CD chart. Everything under "argo-cd:"
+# goes to that chart - the key is the dependency's name in Chart.yaml. To see
+# every setting the chart has:
+#   helm show values helm/argocd/charts/argo-cd-10.9.6.tgz
+argo-cd:
+  global:
+    # Every Argo CD component, and its one-off redis-secret-init job, runs on
+    # the node labelled type=dependent_services - see docs/minikube.md. Helm
+    # merges this with the chart's own default (kubernetes.io/os: linux), so
+    # both apply.
+    nodeSelector:
+      type: dependent_services
+  configs:
+    cm:
+      # Gives Application objects a health status. Argo CD stopped computing
+      # it in v1.8. The root app's sync waves need it: each wave then waits
+      # until the apps in the waves before it are Healthy.
+      resource.customizations.health.argoproj.io_Application: |
+        hs = {}
+        hs.status = "Progressing"
+        hs.message = ""
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = obj.status.health.status
+            if obj.status.health.message ~= nil then
+              hs.message = obj.status.health.message
+            end
+          end
+        end
+        return hs
+
+  # Resources for every Argo CD container. Requests equal limits, so every
+  # Argo CD pod gets the Guaranteed QoS class, the same as the API and MySQL.
+  # Memory: about twice the peak that kubectl top showed during a hard refresh
+  # of all apps. The repo-server gets more: its rendering spikes are too short
+  # for metrics-server to catch. CPU: small fixed amounts - over its limit a
+  # container only slows down. The two init containers and the
+  # redis-secret-init job use the chart's example sizes.
+  controller:
+    resources:
+      requests: { cpu: 250m, memory: 768Mi }
+      limits: { cpu: 250m, memory: 768Mi }
+  repoServer:
+    resources:
+      requests: { cpu: 250m, memory: 256Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+    copyutil:
+      resources:
+        requests: { cpu: 100m, memory: 128Mi }
+        limits: { cpu: 100m, memory: 128Mi }
+  server:
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  redis:
+    resources:
+      requests: { cpu: 100m, memory: 64Mi }
+      limits: { cpu: 100m, memory: 64Mi }
+  dex:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 50m, memory: 128Mi }
+    initImage:
+      resources:
+        requests: { cpu: 10m, memory: 144Mi }
+        limits: { cpu: 10m, memory: 144Mi }
+  notifications:
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { cpu: 50m, memory: 64Mi }
+  applicationSet:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 50m, memory: 128Mi }
+  redisSecretInit:
+    resources:
+      requests: { cpu: 200m, memory: 128Mi }
+      limits: { cpu: 200m, memory: 128Mi }

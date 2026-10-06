@@ -1,0 +1,14 @@
+apiVersion: v2
+name: vault
+description: >-
+  HashiCorp's community Vault chart at a fixed version, with our settings.
+  The community chart itself is charts/vault-0.34.1.tgz, downloaded by
+  `helm dependency update`; this chart only adds values.yaml.
+type: application
+# Version of this chart. Bump it whenever anything in this folder changes,
+# including the dependency version below.
+version: 0.1.0
+dependencies:
+  - name: vault
+    version: 0.34.1
+    repository: https://helm.releases.hashicorp.com

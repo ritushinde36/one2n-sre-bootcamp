@@ -1,0 +1,13 @@
+{{ include "mysql.fullname" . }} is installed in namespace {{ .Release.Namespace }}.
+Image: {{ include "mysql.image" . }}
+
+Pods in the cluster reach it at {{ include "mysql.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.port }}.
+The DSN stored in Vault must use this host.
+
+Check the pod is ready (READY 1/1):
+
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+The data lives in the volume claim data-{{ include "mysql.fullname" . }}-0. `helm uninstall`
+leaves it, so the next install starts with the old data. See the Cleanup
+section of docs/helm.md.

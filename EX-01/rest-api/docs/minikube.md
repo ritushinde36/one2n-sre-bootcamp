@@ -6,6 +6,12 @@ This page explains how to run the app on a local Kubernetes cluster. It covers c
 
 You need `minikube`, `kubectl` and `helm`. See [Prerequisites](prerequisites.md).
 
+You can deploy the same stack on this cluster in three ways:
+
+- **With the manifests** in [manifests/](../manifests/): this page.
+- **With Helm charts:** see [Helm Charts](helm.md).
+- **With Argo CD:** see [Argo CD](argocd.md).
+
 ## Architecture
 
 ```

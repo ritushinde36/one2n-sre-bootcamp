@@ -1,0 +1,10 @@
+Vault is installed in namespace {{ .Release.Namespace }}.
+
+It starts sealed, so vault-0 shows 0/1 Running until you unseal it - that
+is expected, not a failure:
+
+  kubectl get pods -n {{ .Release.Namespace }}
+
+Next: initialise and unseal Vault, write the secrets, and set up the
+Kubernetes login - see docs/vault-setup.md. On a new cluster, do this
+once. After every restart, unseal it again.

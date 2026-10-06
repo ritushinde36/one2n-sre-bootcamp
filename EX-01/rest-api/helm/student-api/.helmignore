@@ -1,0 +1,14 @@
+# Files that `helm package` leaves out of the chart archive. One shell glob
+# per line; a leading ! re-includes a file.
+.DS_Store
+# Version control
+.git/
+.gitignore
+# Backup and editor files
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.idea/
+.vscode/

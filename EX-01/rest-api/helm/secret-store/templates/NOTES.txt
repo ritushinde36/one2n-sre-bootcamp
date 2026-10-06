@@ -1,0 +1,8 @@
+The ClusterSecretStore {{ .Values.name }} is installed.
+
+Check it can reach Vault and log in (STATUS Valid, READY True):
+
+  kubectl get clustersecretstore {{ .Values.name }}
+
+Anything else usually means Vault is sealed, or its Kubernetes login is
+not set up yet - see docs/vault-setup.md.

@@ -16,7 +16,8 @@ This page lists what you need installed before you use this project. It covers r
 | `hadolint` | Optional | Only for `make hadolint` |
 | [minikube](https://minikube.sigs.k8s.io/) | Yes, for Kubernetes | Needed to run a local cluster. See [Minikube Cluster](minikube.md). |
 | `kubectl` | Yes, for Kubernetes | Needed to interact with the cluster. See [Minikube Cluster](minikube.md). |
-| [helm](https://helm.sh/) | Yes, for Kubernetes | Installs Vault and the External Secrets Operator. See [Secrets Management](secrets-management.md). |
+| [helm](https://helm.sh/) | Yes, for Kubernetes | Installs Vault and the External Secrets Operator. See [Secrets Management](secrets-management.md). With the Helm charts, it also deploys MySQL and the API. See [Helm Charts](helm.md). With Argo CD, it installs Argo CD. See [Argo CD](argocd.md). |
+| [Argo CD](https://argo-cd.readthedocs.io/) | Yes, for Argo CD | `make argocd-install` installs it in the cluster with helm. Use it through its web UI, or from the terminal with the `argocd` CLI. See [Argo CD](argocd.md). |
 | [Vagrant](https://www.vagrantup.com/) | Yes, for the Vagrant VM | Needed to run the app in a VM via the [Vagrantfile](../Vagrantfile). |
 | [UTM](https://mac.getutm.app/) | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | We use UTM as the Vagrant provider. |
 | `vagrant_utm` plugin | Yes, for the Vagrant VM - **Apple Silicon (M-series) Macs only** | Community plugin that lets Vagrant drive UTM as a provider. |
@@ -31,4 +32,7 @@ See [scripts/install-prerequisites.sh](../scripts/install-prerequisites.sh) to s
 
 Note: the script installs Docker Desktop, but does not start it.
 
-After installing, open Docker.app once by hand. Check that the menu bar icon shows it running. Do this before using any `docker-*`, `compose-*`, or `test*` target. Otherwise, you will see the error "Cannot connect to the Docker daemon".
+After installing, open Docker.app once by hand. Check that the menu bar icon shows it running. Docker must be running before you use any `docker-*`, `compose-*`, `test*`, `k8s-*`, `helm-*` or `argocd-*` target. The minikube nodes are Docker containers, so the cluster stops when Docker stops. Otherwise, you will see one of these errors:
+
+- `Cannot connect to the Docker daemon`, from the `docker-*`, `compose-*` and `test*` targets.
+- `connection to the server ... was refused` or `Kubernetes cluster unreachable`, from the `k8s-*`, `helm-*` and `argocd-*` targets.

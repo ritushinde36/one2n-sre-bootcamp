@@ -1,0 +1,26 @@
+# Default settings for the secret-store chart. Override any of them on the
+# command line, e.g. --set vault.role=my-role, or with your own file:
+# -f my.yaml.
+
+# The store's name. The student-api and mysql charts refer to it by this
+# name (their externalSecret.secretStoreName) - change all three together.
+name: vault-backend
+
+vault:
+  # The Service that the vault chart creates: <release>.<namespace>.svc.
+  server: http://vault.vault.svc.cluster.local:8200
+  # The key-value engine that holds the secrets, and its version - see step
+  # 4 of docs/secrets-management.md.
+  path: secret
+  version: v2
+  # Vault's Kubernetes login method: where it is enabled, and the role bound
+  # to the operator's service account - see step 5 of
+  # docs/secrets-management.md.
+  authMountPath: kubernetes
+  role: external-secrets
+
+# The service account the operator logs in to Vault with. The vault role
+# above accepts only this account, in this namespace.
+serviceAccount:
+  name: external-secrets
+  namespace: external-secrets

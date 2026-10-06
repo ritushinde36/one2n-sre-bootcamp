@@ -1,0 +1,29 @@
+# The root app - the only Argo CD object that make argocd-apps applies.
+# Its source is not a chart: it is the folder argocd/apps/, which holds the
+# other Argo CD objects. Argo CD creates them, and keeps them in sync with git
+# from then on. Uses the built-in "default" project, because the student-api
+# project is one of the objects it creates.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ritushinde36/one2n-sre-bootcamp.git
+    targetRevision: main
+    path: EX-01/rest-api/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # Waves 1 to 3 cannot turn Healthy until someone unseals and configures
+    # Vault by hand, and Argo CD counts that as a failed sync. Its default of
+    # 5 retries can run out first, and then root stops for good. -1 retries
+    # without a limit - the wait doubles each time, up to 3 minutes.
+    retry:
+      limit: -1

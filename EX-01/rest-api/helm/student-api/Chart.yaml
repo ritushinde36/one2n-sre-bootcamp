@@ -1,0 +1,7 @@
+apiVersion: v2
+name: student-api
+description: >-
+  The Student REST API - its Deployment (with a migration init container),
+  Service, ConfigMap, and the ExternalSecret that pulls the DSN from Vault.
+type: application
+version: 0.1.0
