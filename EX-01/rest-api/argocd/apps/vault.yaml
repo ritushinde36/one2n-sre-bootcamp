@@ -12,7 +12,7 @@ spec:
   project: student-api
   source:
     repoURL: https://github.com/ritushinde36/one2n-sre-bootcamp.git
-    targetRevision: feature/helm-argocd
+    targetRevision: main
     path: EX-01/rest-api/helm/vault
     helm:
       releaseName: vault
