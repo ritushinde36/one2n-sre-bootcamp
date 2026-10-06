@@ -9,7 +9,7 @@ image:
   # after every successful build, and Argo CD then deploys it. The migrate
   # init container and the API container both use this one value, so they
   # always run the same build.
-  tag: "v0.5.0-10-gc15ab03"
+  tag: "v0.5.0-14-gb4aeff7"
   pullPolicy: IfNotPresent
 
 # Object names are "<release>-student-api", or just "<release>" when the
